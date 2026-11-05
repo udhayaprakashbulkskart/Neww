@@ -31,6 +31,8 @@ const schema = z.object({
   DONATION_MAX_PAISE: z.coerce.number().int().positive().default(50_000_000),
   CAMPAIGN_MAX_REQUEST_PAISE: z.coerce.number().int().positive().default(990_000_000),
   FRAUD_DONATIONS_PER_HOUR_PER_IP: z.coerce.number().int().positive().default(25),
+  // Explicit opt-in for a production-hosted sandbox (mock payments, mock KYC, console messaging).
+  ALLOW_SANDBOX: z.enum(['true', 'false']).default('false'),
 });
 
 export type Env = z.infer<typeof schema> & {
@@ -39,6 +41,8 @@ export type Env = z.infer<typeof schema> & {
   sessionSecret: Uint8Array;
   fileSigningSecret: Buffer;
   isProduction: boolean;
+  /** True in development and tests, and in production only when ALLOW_SANDBOX=true. */
+  sandboxAllowed: boolean;
 };
 
 const DEV_FALLBACK = {
@@ -68,7 +72,8 @@ export function env(): Env {
     throw new Error('ENCRYPTION_KEY must be a base64-encoded 32-byte key (openssl rand -base64 32).');
   }
 
-  if (isProduction) {
+  const sandboxAllowed = !isProduction || parsed.ALLOW_SANDBOX === 'true';
+  if (isProduction && !sandboxAllowed) {
     if (parsed.KYC_PROVIDER === 'mock') {
       throw new Error('KYC_PROVIDER=mock is not allowed in production. Configure an authorised KYC provider.');
     }
@@ -79,6 +84,9 @@ export function env(): Env {
       throw new Error('Console messaging providers are not allowed in production.');
     }
   }
+  if (isProduction && sandboxAllowed) {
+    console.warn('[sandbox] Production build running in SANDBOX mode: mock payments, mock KYC and console messaging. No real money moves and no real OTPs are sent.');
+  }
 
   cached = {
     ...parsed,
@@ -87,6 +95,7 @@ export function env(): Env {
     sessionSecret: new TextEncoder().encode(pick('SESSION_SECRET', parsed.SESSION_SECRET)),
     fileSigningSecret: Buffer.from(pick('FILE_SIGNING_SECRET', parsed.FILE_SIGNING_SECRET)),
     isProduction,
+    sandboxAllowed,
   };
   return cached;
 }

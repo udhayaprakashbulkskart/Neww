@@ -33,7 +33,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
         />
       </head>
-      <body className="min-h-dvh bg-ink-950 font-sans text-ui-text antialiased">{children}</body>
+      <body className="min-h-dvh bg-ink-950 font-sans text-ui-text antialiased">
+        {process.env.NEXT_PUBLIC_SANDBOX === 'true' && (
+          <div role="status" className="sticky top-0 z-[60] bg-pastel-yellow px-4 py-2 text-center text-xs font-semibold text-ink-950">
+            Sandbox: no real payments or OTPs. Do not enter real bank or card details.
+          </div>
+        )}
+        {children}
+      </body>
     </html>
   );
 }

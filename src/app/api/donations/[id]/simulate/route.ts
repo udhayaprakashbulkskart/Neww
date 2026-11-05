@@ -13,7 +13,7 @@ const schema = z.object({ outcome: z.enum(['success', 'failed']) });
  * real gateway is configured. It runs the same signature and webhook code as live payments.
  */
 export const POST = handle<{ params: { id: string } }>(async (req, { params }) => {
-  if (env().isProduction) throw errors.notFound('Route');
+  if (!env().sandboxAllowed) throw errors.notFound('Route');
   const user = await requireUser();
   const body = schema.parse(await readJson(req));
   const result = await simulateMockPayment({ donorId: user.id, donationId: params.id, outcome: body.outcome, ip: clientIp(req) });

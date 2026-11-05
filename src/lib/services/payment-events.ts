@@ -171,7 +171,7 @@ export async function applyFailed(args: { orderId: string; paymentId: string; co
  * paths as production. Refused in production and when the real gateway is configured.
  */
 export async function simulateMockPayment(args: { donorId: string; donationId: string; outcome: 'success' | 'failed'; ip: string | null }) {
-  if (env().isProduction || getPaymentGateway().name !== 'MOCK') throw errors.notFound('Simulator');
+  if (!env().sandboxAllowed || getPaymentGateway().name !== 'MOCK') throw errors.notFound('Simulator');
   const donation = await db.donation.findUnique({ where: { id: args.donationId }, select: { donorId: true, payment: { select: { providerOrderId: true, amountPaise: true } } } });
   if (!donation || donation.donorId !== args.donorId || !donation.payment?.providerOrderId) throw errors.notFound('Donation');
   const orderId = donation.payment.providerOrderId;

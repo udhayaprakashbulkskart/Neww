@@ -39,7 +39,7 @@ export function ComplaintForm({ campaignId }: { campaignId?: string }) {
         <label htmlFor="c-body" className="label">
           Details
         </label>
-        <textarea id="c-body" className="textarea" maxLength={3000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Tell us what happened. Do not share your password or OTP with anyone." />
+        <textarea id="c-body" className="textarea" maxLength={3000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Tell us what happened. Never share your password with anyone." />
       </div>
       {msg && <Notice tone={msg.tone === 'success' ? 'success' : 'error'}>{msg.text}</Notice>}
       <button type="submit" disabled={busy} className="btn-primary w-full">

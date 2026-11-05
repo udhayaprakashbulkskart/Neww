@@ -27,11 +27,6 @@ enum UserStatus {
   DELETED
 }
 
-enum OtpPurpose {
-  LOGIN
-  REGISTER
-}
-
 enum CampaignStatus {
   DRAFT
   PENDING            // submitted, waiting for the review queue
@@ -165,6 +160,7 @@ model User {
   userType         UserType   @default(DONOR)
   status           UserStatus @default(PENDING_VERIFICATION)
   sessionVersion   Int        @default(0)       // bump to revoke all sessions
+  passwordHash     String?                      // scrypt hash; null only for accounts created before password sign-in
   mobileVerifiedAt DateTime?
   consentAcceptedAt DateTime?
   lastLoginAt      DateTime?
@@ -244,21 +240,6 @@ model UserRole {
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
-}
-
-model OtpCode {
-  id               String     @id @default(cuid())
-  mobileHash       String
-  purpose          OtpPurpose
-  codeHash         String
-  attempts         Int        @default(0)
-  expiresAt        DateTime
-  consumedAt       DateTime?
-  pendingEncrypted String?    // registration payload (name, user type) encrypted until verified
-  createdAt        DateTime   @default(now())
-
-  @@index([mobileHash, purpose, createdAt])
-  @@index([expiresAt])
 }
 
 // ---------- Campaigns ----------

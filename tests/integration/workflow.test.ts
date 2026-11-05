@@ -2,8 +2,8 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/lib/db';
 import { resetDatabase, makeUser, makeCampaign } from './helpers';
 import { approvalBlockers, reviewCampaign, submitCampaign } from '@/lib/services/campaigns';
-import { createOtp, verifyOtp } from '@/lib/auth/otp';
-import { keyedHash } from '@/lib/crypto';
+import { registerWithPassword, loginWithPassword } from '@/lib/services/auth';
+import { hashPassword, verifyPassword } from '@/lib/password';
 import { reviewDocument } from '@/lib/services/documents';
 import { reviewVerification } from '@/lib/services/verification';
 import { setUserSuspended } from '@/lib/services/admin';
@@ -185,37 +185,48 @@ describe('refunds', () => {
   });
 });
 
-describe('one-time codes', () => {
-  it('accepts the correct code once and then refuses reuse', async () => {
-    const mobileHash = keyedHash(`91${Date.now()}`, 'mobile');
-    const { code } = await createOtp({ mobileHash, purpose: 'LOGIN', ip: '198.51.100.1' });
-    expect((await verifyOtp({ mobileHash, purpose: 'LOGIN', code })).ok).toBe(true);
-    expect((await verifyOtp({ mobileHash, purpose: 'LOGIN', code })).ok).toBe(false);
+describe('password sign-in', () => {
+  const ip = '198.51.100.9';
+
+  it('creates an account and stores only a salted scrypt hash', async () => {
+    const mobile = `97${Date.now().toString().slice(-8)}`;
+    const user = await registerWithPassword({ mobile, fullName: 'Asha Devi', password: 'Sunshine42', ip });
+    const row = await db.user.findUniqueOrThrow({ where: { id: user.id } });
+    expect(row.passwordHash).toMatch(/^scrypt\$/);
+    expect(row.passwordHash).not.toContain('Sunshine42');
+    expect(await verifyPassword('Sunshine42', row.passwordHash)).toBe(true);
+    expect(await verifyPassword('sunshine42', row.passwordHash)).toBe(false);
   });
 
-  it('locks after too many wrong guesses even if the right code follows', async () => {
-    const mobileHash = keyedHash(`92${Date.now()}`, 'mobile');
-    const { code } = await createOtp({ mobileHash, purpose: 'LOGIN', ip: '198.51.100.2' });
-    wrongCode: for (let i = 0; i < 5; i++) {
-      const wrong = code === '000000' ? '111111' : '000000';
-      await verifyOtp({ mobileHash, purpose: 'LOGIN', code: wrong });
+  it('signs in with the right password and refuses the wrong one with a generic message', async () => {
+    const mobile = `96${Date.now().toString().slice(-8)}`;
+    await registerWithPassword({ mobile, fullName: 'Ravi Kumar', password: 'Blueberry7', ip });
+    await expect(loginWithPassword({ mobile, password: 'Blueberry7', ip })).resolves.toMatchObject({ id: expect.any(String) });
+    await expect(loginWithPassword({ mobile, password: 'wrong-guess', ip })).rejects.toThrow(/incorrect/);
+    await expect(loginWithPassword({ mobile: '9955555555', password: 'anything1', ip })).rejects.toThrow(/incorrect/);
+  });
+
+  it('throttles repeated failures on one mobile number', async () => {
+    const mobile = `95${Date.now().toString().slice(-8)}`;
+    await registerWithPassword({ mobile, fullName: 'Meena Raj', password: 'Orange99x', ip: '198.51.100.11' });
+    for (let i = 0; i < 10; i++) {
+      await loginWithPassword({ mobile, password: 'nope-nope', ip: '198.51.100.11' }).catch(() => undefined);
     }
-    const res = await verifyOtp({ mobileHash, purpose: 'LOGIN', code });
-    expect(res).toEqual({ ok: false, reason: 'LOCKED' });
+    await expect(loginWithPassword({ mobile, password: 'Orange99x', ip: '198.51.100.11' })).rejects.toThrow(/Too many attempts/);
   });
 
-  it('stores only a keyed hash, never the code', async () => {
-    const mobileHash = keyedHash(`93${Date.now()}`, 'mobile');
-    const { code } = await createOtp({ mobileHash, purpose: 'REGISTER', ip: '198.51.100.3' });
-    const row = await db.otpCode.findFirstOrThrow({ where: { mobileHash } });
-    expect(row.codeHash).not.toContain(code);
-    expect(row.codeHash).toMatch(/^[0-9a-f]{64}$/);
+  it('refuses sign-in for suspended accounts even with the right password', async () => {
+    const mobile = `94${Date.now().toString().slice(-8)}`;
+    const user = await registerWithPassword({ mobile, fullName: 'Kavitha N', password: 'Harbour11', ip: '198.51.100.12' });
+    await db.user.update({ where: { id: user.id }, data: { status: 'SUSPENDED' } });
+    await expect(loginWithPassword({ mobile, password: 'Harbour11', ip: '198.51.100.12' })).rejects.toThrow(/suspended/);
   });
 
-  it('rejects expired codes', async () => {
-    const mobileHash = keyedHash(`94${Date.now()}`, 'mobile');
-    const { code } = await createOtp({ mobileHash, purpose: 'LOGIN', ip: '198.51.100.4' });
-    await db.otpCode.updateMany({ where: { mobileHash }, data: { expiresAt: new Date(Date.now() - 1000) } });
-    expect(await verifyOtp({ mobileHash, purpose: 'LOGIN', code })).toEqual({ ok: false, reason: 'EXPIRED' });
+  it('hashes and verifies passwords with the parameters stored alongside the hash', async () => {
+    const hash = await hashPassword('Correct horse 1');
+    expect(hash.split('$')).toHaveLength(6);
+    expect(await verifyPassword('Correct horse 1', hash)).toBe(true);
+    expect(await verifyPassword('Correct horse 2', hash)).toBe(false);
+    expect(await verifyPassword('anything', null)).toBe(false);
   });
 });

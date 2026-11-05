@@ -33,7 +33,7 @@ export default function ContactPage() {
           Under the Information Technology Act and the Consumer Protection (E-Commerce) Rules, grievances about the platform are handled by our grievance officer. Details are published in the final Terms once legal review is complete.
         </p>
         <p className="mt-4">
-          Do not share your OTP, password or bank details with anyone, including people who contact you claiming to be from HelpTrust. We will never ask for them.
+          Do not share your password or bank details with anyone, including people who contact you claiming to be from HelpTrust. We will never ask for them.
         </p>
       </div>
 

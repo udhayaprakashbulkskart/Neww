@@ -6,22 +6,13 @@ import { env } from '../env';
  * exists for development and is rejected at startup in production (see env.ts).
  */
 
-export type SmsTemplate = 'OTP' | 'DONATION_RECEIVED' | 'PAYMENT_CONFIRMATION' | 'CAMPAIGN_STATUS';
-
-export async function sendOtpSms(mobileLast4: string, code: string, fullMobile: string): Promise<void> {
-  const provider = env().SMS_PROVIDER;
-  if (provider === 'console') {
-    // Development only. The code is printed so local testers can complete the flow.
-    console.info(`[sms:dev] OTP for ******${mobileLast4}: ${code}`);
-    return;
-  }
-  void fullMobile;
-  throw new Error('No SMS provider configured. Set SMS_PROVIDER to a DLT-registered provider adapter.');
-}
+export type SmsTemplate = 'DONATION_RECEIVED' | 'PAYMENT_CONFIRMATION' | 'CAMPAIGN_STATUS';
 
 export async function sendSms(mobileLast4: string, template: SmsTemplate, text: string): Promise<void> {
   if (env().SMS_PROVIDER === 'console') {
-    console.info(`[sms:dev] ${template} to ******${mobileLast4}: ${text}`);
+    // Log only the template name and number suffix. Message bodies can contain personal details.
+    console.info(`[sms:dev] ${template} to ******${mobileLast4}`);
+    void text;
     return;
   }
   // Production adapters are wired here once the DLT template IDs are approved.

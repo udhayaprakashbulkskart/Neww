@@ -2,7 +2,7 @@
  * Development seed. Creates RBAC roles, categories, staff and realistic DEMO data.
  * Refuses to run in production. Re-running is safe: every record is upserted by a stable key.
  *
- * Demo mobile numbers (sign in with OTP; in development the code is printed to the console):
+ * Demo mobile numbers (sign in with mobile + password DemoPassword1):
  *   Super Admin           9000000001
  *   Verification Officer  9000000002
  *   Finance Officer       9000000003
@@ -14,6 +14,7 @@
 import { PrismaClient } from '@prisma/client';
 import { encryptText, keyedHash } from '../src/lib/crypto';
 import { syncRbac } from '../src/lib/rbac';
+import { hashPassword } from '../src/lib/password';
 import { slugify } from '../src/lib/format';
 
 const db = new PrismaClient();
@@ -167,11 +168,15 @@ const CAMPAIGNS = [
   },
 ];
 
+/** Demo accounts all use this password. Development only. */
+const DEMO_PASSWORD = 'DemoPassword1';
+
 async function ensureUser(args: { mobile: string; name: string; userType: 'BENEFICIARY' | 'DONOR' | 'BOTH' | 'DONOR' }) {
   const mobileHash = keyedHash(args.mobile, 'mobile');
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
   return db.user.upsert({
     where: { mobileHash },
-    update: { fullName: args.name },
+    update: { fullName: args.name, passwordHash },
     create: {
       mobileHash,
       mobileEncrypted: encryptText(args.mobile),
@@ -179,7 +184,7 @@ async function ensureUser(args: { mobile: string; name: string; userType: 'BENEF
       fullName: args.name,
       userType: args.userType,
       status: 'ACTIVE',
-      mobileVerifiedAt: new Date(),
+      passwordHash,
       consentAcceptedAt: new Date(),
       profile: { create: { notifyEmail: false } },
     },

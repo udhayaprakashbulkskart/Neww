@@ -10,7 +10,7 @@ export async function resetDatabase() {
     TRUNCATE TABLE
       "WebhookEvent", "Refund", "Payment", "Donation", "SavedCampaign", "CampaignUpdate", "CampaignDocument",
       "FraudReport", "Complaint", "Notification", "AdminAuditLog", "PlatformSetting", "VerificationReview",
-      "Verification", "BankVerification", "Campaign", "CampaignCategory", "OtpCode", "UserRole", "UserProfile",
+      "Verification", "BankVerification", "Campaign", "CampaignCategory", "UserRole", "UserProfile",
       "RolePermission", "Role", "Permission", "User"
     RESTART IDENTITY CASCADE
   `);

@@ -1,13 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api } from '@/lib/client/api';
-import { setPendingOtp } from '@/lib/client/pending-otp';
 import { Notice } from '@/components/ui/primitives';
 
 export function LoginForm({ next }: { next?: string }) {
+  const router = useRouter();
   const [mobile, setMobile] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,19 +17,16 @@ export function LoginForm({ next }: { next?: string }) {
     e.preventDefault();
     setError(null);
     const digits = mobile.replace(/\D/g, '');
-    if (!/^[6-9]\d{9}$/.test(digits)) {
-      setError('Enter a valid 10-digit mobile number.');
-      return;
-    }
+    if (!/^[6-9]\d{9}$/.test(digits)) return setError('Enter a valid 10-digit mobile number.');
+    if (!password) return setError('Enter your password.');
     setBusy(true);
-    const res = await api('/api/auth/otp/request', { body: { mobile: digits, purpose: 'LOGIN' } });
-    setBusy(false);
+    const res = await api<{ next: string }>('/api/auth/login', { body: { mobile: digits, password } });
     if (!res.ok) {
-      setError(res.message);
-      return;
+      setBusy(false);
+      return setError(res.message);
     }
-    setPendingOtp({ mobile: digits, purpose: 'LOGIN', next });
-    window.location.assign('/app/otp');
+    router.replace(next && next.startsWith('/app') ? next : res.data.next);
+    router.refresh();
   }
 
   return (
@@ -38,31 +37,20 @@ export function LoginForm({ next }: { next?: string }) {
         </label>
         <div className="flex gap-2">
           <span className="input flex w-[78px] shrink-0 items-center justify-center text-ui-muted">+91</span>
-          <input
-            id="mobile"
-            name="mobile"
-            inputMode="numeric"
-            autoComplete="tel-national"
-            maxLength={14}
-            placeholder="98765 43210"
-            className="input"
-            value={mobile}
-            onChange={(e) => setMobile(e.target.value)}
-            aria-invalid={!!error}
-            aria-describedby={error ? 'login-error' : undefined}
-          />
+          <input id="mobile" name="mobile" inputMode="numeric" autoComplete="tel-national" maxLength={14} placeholder="98765 43210" className="input" value={mobile} onChange={(e) => setMobile(e.target.value)} />
         </div>
-        <p className="mt-2 text-xs text-ui-subtle">We send a one-time code by SMS. Standard rates may apply.</p>
+      </div>
+      <div>
+        <label htmlFor="password" className="label">
+          Password
+        </label>
+        <input id="password" type="password" autoComplete="current-password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
       </div>
 
-      {error && (
-        <div id="login-error">
-          <Notice tone="error">{error}</Notice>
-        </div>
-      )}
+      {error && <Notice tone="error">{error}</Notice>}
 
       <button type="submit" disabled={busy} className="btn-primary w-full">
-        {busy ? 'Sending code…' : 'Send OTP'}
+        {busy ? 'Logging in…' : 'Log in'}
       </button>
 
       <p className="text-center text-sm text-ui-muted">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bankAccountSchema, campaignDetailsSchema, campaignFinancialSchema, campaignSearchSchema, donationCreateSchema, mobileSchema, otpVerifySchema, registerSchema } from '@/lib/validation/schemas';
+import { bankAccountSchema, campaignDetailsSchema, campaignFinancialSchema, campaignSearchSchema, donationCreateSchema, mobileSchema, loginSchema, registerSchema } from '@/lib/validation/schemas';
 
 describe('mobile number normalisation', () => {
   it.each([
@@ -16,20 +16,28 @@ describe('mobile number normalisation', () => {
   });
 });
 
-describe('registration and OTP', () => {
+describe('registration and sign-in', () => {
+  const base = { mobile: '9876543210', fullName: 'Asha Devi', password: 'Sunshine42', consent: true };
+
   it('requires consent to register', () => {
-    expect(() => registerSchema.parse({ mobile: '9876543210', fullName: 'Asha Devi', userType: 'DONOR', consent: false })).toThrow();
-    expect(registerSchema.parse({ mobile: '9876543210', fullName: 'Asha Devi', userType: 'DONOR', consent: true }).mobile).toBe('9876543210');
+    expect(() => registerSchema.parse({ ...base, consent: false })).toThrow();
+    expect(registerSchema.parse(base).mobile).toBe('9876543210');
   });
 
   it('rejects names with digits or symbols', () => {
-    expect(() => registerSchema.parse({ mobile: '9876543210', fullName: 'Asha 2', userType: 'DONOR', consent: true })).toThrow();
+    expect(() => registerSchema.parse({ ...base, fullName: 'Asha 2' })).toThrow();
   });
 
-  it('accepts only six-digit codes', () => {
-    expect(otpVerifySchema.parse({ mobile: '9876543210', purpose: 'LOGIN', code: '123456' }).code).toBe('123456');
-    expect(() => otpVerifySchema.parse({ mobile: '9876543210', purpose: 'LOGIN', code: '12345' })).toThrow();
-    expect(() => otpVerifySchema.parse({ mobile: '9876543210', purpose: 'LOGIN', code: '12a456' })).toThrow();
+  it('requires a strong password: 8+ characters with a letter and a number', () => {
+    expect(() => registerSchema.parse({ ...base, password: 'short1' })).toThrow(/8 characters/);
+    expect(() => registerSchema.parse({ ...base, password: 'allletters' })).toThrow(/number/);
+    expect(() => registerSchema.parse({ ...base, password: '12345678' })).toThrow(/letter/);
+    expect(registerSchema.parse(base).password).toBe('Sunshine42');
+  });
+
+  it('accepts any non-empty password at sign-in (policy is enforced at registration)', () => {
+    expect(loginSchema.parse({ mobile: '9876543210', password: 'x' }).password).toBe('x');
+    expect(() => loginSchema.parse({ mobile: '9876543210', password: '' })).toThrow();
   });
 });
 

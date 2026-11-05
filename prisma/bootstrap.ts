@@ -2,11 +2,12 @@
  * Idempotent bootstrap for a fresh database: RBAC roles, campaign categories and, when requested,
  * a sandbox super-admin. Safe to run on every deploy. It creates no donations, campaigns or donors.
  *
- * BOOTSTRAP_SUPERADMIN_MOBILE=9000000001 creates (or re-uses) one super-admin account.
+ * BOOTSTRAP_SUPERADMIN_MOBILE and BOOTSTRAP_SUPERADMIN_PASSWORD create (or update) one super-admin account.
  */
 import { PrismaClient } from '@prisma/client';
 import { encryptText, keyedHash } from '../src/lib/crypto';
 import { syncRbac } from '../src/lib/rbac';
+import { hashPassword } from '../src/lib/password';
 
 const db = new PrismaClient();
 
@@ -28,10 +29,13 @@ async function main() {
   const mobile = process.env.BOOTSTRAP_SUPERADMIN_MOBILE?.replace(/\D/g, '');
   if (mobile) {
     if (!/^[6-9]\d{9}$/.test(mobile)) throw new Error('BOOTSTRAP_SUPERADMIN_MOBILE must be a 10-digit Indian mobile number.');
+    const password = process.env.BOOTSTRAP_SUPERADMIN_PASSWORD;
+    if (!password || password.length < 12) throw new Error('BOOTSTRAP_SUPERADMIN_PASSWORD must be set (12+ characters).');
     const mobileHash = keyedHash(mobile, 'mobile');
+    const passwordHash = await hashPassword(password);
     const user = await db.user.upsert({
       where: { mobileHash },
-      update: { status: 'ACTIVE' },
+      update: { status: 'ACTIVE', passwordHash },
       create: {
         mobileHash,
         mobileEncrypted: encryptText(mobile),
@@ -39,7 +43,7 @@ async function main() {
         fullName: 'Sandbox Super Admin',
         userType: 'DONOR',
         status: 'ACTIVE',
-        mobileVerifiedAt: new Date(),
+        passwordHash,
         profile: { create: { notifyEmail: false } },
       },
     });

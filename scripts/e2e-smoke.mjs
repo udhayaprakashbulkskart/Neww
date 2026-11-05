@@ -5,9 +5,9 @@
  *   npm run dev -- -p 3000 > dev.log 2>&1 &
  *   HT_DEV_LOG=dev.log node scripts/e2e-smoke.mjs
  *
- * It drives the real flows: OTP sign-in, campaign wizard, document upload, verification, admin review,
+ * It drives the real flows: password sign-in, campaign wizard, document upload, verification, admin review,
  * sandbox donation, signed webhook, refund, signed file download, CSV export and page rendering.
- * OTP codes are read from the development log, because the server never returns them in responses.
+ * Seeded demo accounts use DemoPassword1 (run `npm run db:seed` against the target database first).
  */
 import { readFileSync, existsSync } from 'node:fs';
 import crypto from 'node:crypto';
@@ -69,31 +69,13 @@ class Session {
   }
 }
 
-/** Reads the most recent development OTP printed for a mobile's last four digits. */
-async function latestOtp(last4, offset = 0) {
-  const deadline = Date.now() + 15_000;
-  const re = new RegExp(`OTP for \\*{6}${last4}: (\\d{6})`, 'g');
-  while (Date.now() < deadline) {
-    if (existsSync(LOG)) {
-      const text = readFileSync(LOG, 'utf8').slice(offset);
-      let last = null;
-      for (const m of text.matchAll(re)) last = m[1];
-      if (last) return last;
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  return null;
-}
+const DEMO_PASSWORD = 'DemoPassword1';
 
-async function signIn(mobile, purpose, extra = {}) {
+/** Signs in a seeded demo account with mobile and password. */
+async function signIn(mobile) {
   const s = new Session(mobile);
-  const before = existsSync(LOG) ? readFileSync(LOG, 'utf8').length : 0;
-  const req = await s.call('POST', '/api/auth/otp/request', { json: { mobile, purpose, ...extra } });
-  if (req.status !== 200) throw new Error(`otp request failed ${req.status}: ${req.text}`);
-  const code = await latestOtp(mobile.slice(-4), before);
-  if (!code) throw new Error(`no OTP found in ${LOG} for ${mobile}`);
-  const ver = await s.call('POST', '/api/auth/otp/verify', { json: { mobile, purpose, code } });
-  if (ver.status !== 200) throw new Error(`otp verify failed ${ver.status}: ${ver.text}`);
+  const res = await s.call('POST', '/api/auth/login', { json: { mobile, password: DEMO_PASSWORD } });
+  if (res.status !== 200) throw new Error(`login failed ${res.status}: ${res.text}`);
   return s;
 }
 
@@ -138,7 +120,7 @@ async function main() {
   check('beneficiary shown by first name and last initial', publicBody.includes('"Murugan R."'));
 
   console.log('\nGuest-visible mobile screens');
-  for (const p of ['/app', '/app/onboarding', '/app/login', '/app/register', '/app/otp', '/app/explore', '/app/campaign/demo-help-clear-shop-loan', '/app/category/medical']) {
+  for (const p of ['/app', '/app/onboarding', '/app/login', '/app/register', '/app/explore', '/app/campaign/demo-help-clear-shop-loan', '/app/category/medical']) {
     const r = await new Session('anon').call('GET', p);
     check(`guest can open ${p}`, r.status === 200, `status ${r.status}`);
   }
@@ -151,21 +133,17 @@ async function main() {
   check('admin redirects to admin login', adminGate.status === 307 && (adminGate.headers.get('location') ?? '').includes('/admin/login'));
   const noAuthCreate = await anon.call('POST', '/api/campaigns', { json: {} });
   check('creating a campaign needs a session (401)', noAuthCreate.status === 401);
-  const csrf = await anon.call('POST', '/api/auth/otp/request', { json: { mobile: '9999999999', purpose: 'LOGIN' }, headers: { origin: 'https://evil.example' }, origin: false });
+  const csrf = await anon.call('POST', '/api/auth/login', { json: { mobile: '9999999999', password: 'x' }, headers: { origin: 'https://evil.example' }, origin: false });
   check('cross-site POST is blocked (CSRF)', csrf.status === 403);
-  const badMobile = await anon.call('POST', '/api/auth/otp/request', { json: { mobile: '12345', purpose: 'LOGIN' } });
+  const badMobile = await anon.call('POST', '/api/auth/login', { json: { mobile: '12345', password: 'x' } });
   check('invalid mobile gets a validation error', badMobile.status === 400 && badMobile.data?.error?.code === 'VALIDATION_ERROR');
 
   // ---- Beneficiary registration and campaign wizard ----
   const benMobile = freshMobile();
   const ben = new Session('beneficiary');
-  const before = existsSync(LOG) ? readFileSync(LOG, 'utf8').length : 0;
-  const reg = await ben.call('POST', '/api/auth/otp/request', { json: { mobile: benMobile, purpose: 'REGISTER', fullName: 'Selvi Murugesan', consent: true } });
-  check('registration sends an OTP', reg.status === 200);
-  const regCode = await latestOtp(benMobile.slice(-4), before);
-  const regVer = await ben.call('POST', '/api/auth/otp/verify', { json: { mobile: benMobile, purpose: 'REGISTER', code: regCode } });
-  check('registration verifies OTP and sets a session cookie', regVer.status === 200 && ben.cookie.startsWith('ht_session='));
-  const again = await new Session('x').call('POST', '/api/auth/otp/request', { json: { mobile: benMobile, purpose: 'REGISTER', fullName: 'Selvi Murugesan', consent: true } });
+  const reg = await ben.call('POST', '/api/auth/register', { json: { fullName: 'Selvi Murugesan', mobile: benMobile, password: 'Sunshine42', consent: true } });
+  check('registration creates the account and sets a session cookie', reg.status === 201 && ben.cookie.startsWith('ht_session='));
+  const again = await new Session('x').call('POST', '/api/auth/register', { json: { fullName: 'Selvi Murugesan', mobile: benMobile, password: 'Sunshine42', consent: true } });
   check('registering an existing number asks the user to log in (409)', again.status === 409);
 
   const me = await ben.call('GET', '/api/auth/me');
@@ -248,8 +226,8 @@ async function main() {
 
   // ---- Staff review ----
   console.log('\nStaff review and publication');
-  const admin = await signIn('9000000001', 'LOGIN');
-  check('super admin signs in with OTP', !!admin.cookie);
+  const admin = await signIn('9000000001');
+  check('super admin signs in with password', !!admin.cookie);
   const overview = await admin.call('GET', '/api/admin/overview');
   check('admin overview returns live figures', overview.status === 200 && typeof overview.data?.data?.totalUsers === 'number');
   const adminPage = await admin.call('GET', '/admin');
@@ -280,10 +258,8 @@ async function main() {
   console.log('\nDonations, webhook and refunds');
   const donorMobile = freshMobile();
   const donor = new Session('donor');
-  const b2 = existsSync(LOG) ? readFileSync(LOG, 'utf8').length : 0;
-  await donor.call('POST', '/api/auth/otp/request', { json: { mobile: donorMobile, purpose: 'REGISTER', fullName: 'Arun Prakash', consent: true } });
-  const dCode = await latestOtp(donorMobile.slice(-4), b2);
-  await donor.call('POST', '/api/auth/otp/verify', { json: { mobile: donorMobile, purpose: 'REGISTER', code: dCode } });
+  const reg2 = await donor.call('POST', '/api/auth/register', { json: { fullName: 'Arun Prakash', mobile: donorMobile, password: 'Harbour11', consent: true } });
+  check('donor registers', reg2.status === 201);
   check('donor registers and signs in', !!donor.cookie);
 
   const slug = ownerView.data.data.slug;
@@ -319,7 +295,7 @@ async function main() {
   const refundsAdmin = await admin.call('GET', '/admin/refunds');
   check('refund queue page renders', refundsAdmin.status === 200);
 
-  const finance = await signIn('9000000003', 'LOGIN');
+  const finance = await signIn('9000000003');
   const refund = await refundIdFor(finance, donationId);
   const decide = await finance.call('POST', `/api/admin/refunds/${refund}/decide`, { json: { decision: 'APPROVE', note: 'Duplicate donation confirmed.' } });
   check('finance approves and sends the refund', decide.status === 200 && decide.data?.data?.status === 'PROCESSED', decide.text);

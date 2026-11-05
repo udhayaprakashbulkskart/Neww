@@ -14,16 +14,16 @@ Repository: `Neww` (branch `ccr-e8a20e07-sdl64k`).
 
 | Area | Delivered |
 | --- | --- |
-| Mobile app (31 screens) | `src/app/(mobile)/app/*`. Splash, onboarding, login, registration, OTP, user type, home, explore, category, campaign detail, 8-step campaign wizard, pending/approved status, donation selection, payment, success/failed, history, saved, notifications, beneficiary and donor dashboards, settings, help. Bottom navigation on tab roots. |
+| Mobile app (31 screens) | `src/app/(mobile)/app/*`. Splash, onboarding, login, registration, user type, home, explore, category, campaign detail, 8-step campaign wizard, pending/approved status, donation selection, payment, success/failed, history, saved, notifications, beneficiary and donor dashboards, settings, help. Bottom navigation on tab roots. |
 | Website (12 pages) | `src/app/(site)/*`. Home (live stats), About, How it works, Explore, Campaign details, Request help, Support a cause, Contact, FAQ, Privacy, Terms, Refund policy. |
 | Admin dashboard | `src/app/(admin)/admin/*`. Desktop sidebar with all 15 sections, role-filtered. Campaign review, document review, verification queue, refunds, fraud, complaints, analytics and CSV exports, staff roles, settings, audit history. |
 | Campaigns | Draft/save per step, submission checklist, state machine (`src/lib/state/campaign-machine.ts`), publication only after approval. |
-| Verification | Mobile OTP, identity and address checks (consent-based, provider adapter), bank account verification with encrypted account numbers, document review, manual review queue. |
+| Verification | Identity and address checks (consent-based, provider adapter), bank account verification with encrypted account numbers, document review, manual review queue. |
 | Documents | Type checked by file signature (magic bytes), AES-256-GCM encrypted at rest, private storage outside `public/`, HMAC-signed 5-minute download links, public access only for approved photos/videos on live campaigns. |
 | Donations | Idempotent order creation, Razorpay Checkout (or sandbox mock), checkout signature check, **webhook-only settlement** with signature over the raw body and event-id de-duplication, amount-mismatch hold, receipts (HTML, print to PDF), refund requests and finance approval. |
-| Security | Session cookies (`httpOnly`, `SameSite=Lax`, signed JWT with session version for instant revocation), RBAC from database roles, CSRF origin check, rate limits on OTP and sign-in, security headers and CSP, Zod validation on every input, parameterised queries only (Prisma), audit log on every privileged or money-moving action. |
+| Security | Session cookies (`httpOnly`, `SameSite=Lax`, signed JWT with session version for instant revocation), RBAC from database roles, CSRF origin check, rate limits and lockout on sign-in, security headers and CSP, Zod validation on every input, parameterised queries only (Prisma), audit log on every privileged or money-moving action. |
 | Fraud monitoring | Rules for duplicate documents, duplicate campaigns, repeated campaign abuse, shared bank accounts, bank changes after submission, donation bursts and amount mismatches. Rules only raise reviewable flags; they never suspend anyone. |
-| Database | PostgreSQL + Prisma. All tables from the brief plus `WebhookEvent`, `OtpCode`, `Verification` and the supporting enums. Migrations in `prisma/migrations`. |
+| Database | PostgreSQL + Prisma. All tables from the brief plus `WebhookEvent`, `Verification` and the supporting enums. Migrations in `prisma/migrations`. |
 | Tests | 91 unit and integration tests (`npm test`) and a 124-check HTTP end-to-end smoke test (`scripts/e2e-smoke.mjs`). |
 
 ---
@@ -42,11 +42,11 @@ npm run dev                      # http://localhost:3000
 
 Development notes:
 
-* OTP codes are printed to the server console (`[sms:dev] OTP for ******1234: 123456`). They are never returned in API responses.
+* Sign-in uses a mobile number and password. Demo accounts use `DemoPassword1` (development only).
 * The payment provider defaults to `mock`: a local sandbox that uses the same signing and webhook code as Razorpay.
 * Development falls back to clearly named dev-only secrets when `ENCRYPTION_KEY` and friends are unset. Production does not.
 
-Demo sign-in numbers (seeded): staff `9000000001` (super admin), `9000000002` (verification), `9000000003` (finance),
+Demo sign-in numbers (seeded, password `DemoPassword1`): staff `9000000001` (super admin), `9000000002` (verification), `9000000003` (finance),
 `9000000004` (support), `9000000005` (fraud); beneficiaries `9100000001`–`9100000004`; donors `9200000001`–`9200000002`.
 
 ---
@@ -96,9 +96,9 @@ HT_DEV_LOG=dev.log node scripts/e2e-smoke.mjs   # HTTP end-to-end flow (124 chec
 
 Coverage by layer:
 
-* **Unit:** encryption and signatures, validation schemas (money, IFSC, mobile, OTP), state machine, document sniffing,
+* **Unit:** encryption and signatures, validation schemas (money, IFSC, mobile, passwords), state machine, document sniffing,
   CSV injection guard, HTML escaping, formatting, rate limiter.
-* **Integration (real database):** OTP lifecycle (single use, lockout, expiry, hashing), donation idempotency and limits,
+* **Integration (real database):** password sign-in (scrypt hashing, generic failure message, throttling, suspension), donation idempotency and limits,
   checkout signature forgery, webhook signature and tampering, replay de-duplication, amount mismatch hold, campaign
   review gates and permissions, suspension revocation, refunds applied exactly once.
 * **HTTP end-to-end:** sign-up and sign-in, CSRF, wizard, uploads (spoofed and mismatched files rejected), verification,
@@ -171,7 +171,7 @@ src/
     wizard/              campaign creation steps
     admin/               admin shell, tables, review controls
   lib/
-    auth/                sessions (JWT + DB session version), OTP
+    auth/                sessions (JWT + DB session version)
     services/            business logic: campaigns, donations, payment events, documents, verification, fraud, admin
     providers/           messaging, KYC, payment gateways (Razorpay, sandbox mock)
     state/               campaign lifecycle transitions

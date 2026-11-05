@@ -15,8 +15,6 @@ export const mobileSchema = z
   .transform((v) => v.replace(/[\s()-]/g, '').replace(/^\+?91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, ''))
   .refine((v) => MOBILE_RE.test(v), 'Enter a valid 10-digit Indian mobile number.');
 
-export const otpCodeSchema = z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code.');
-
 export const fullNameSchema = z
   .string()
   .trim()
@@ -28,27 +26,25 @@ export const emailSchema = z.string().trim().toLowerCase().email().max(120);
 
 export const userTypeSchema = z.enum(['BENEFICIARY', 'DONOR', 'BOTH']);
 
+/** Passwords: 8+ characters with a letter and a digit. Length is capped to bound hashing cost. */
+export const passwordSchema = z
+  .string()
+  .min(8, 'Use at least 8 characters.')
+  .max(128)
+  .regex(/[A-Za-z]/, 'Include at least one letter.')
+  .regex(/\d/, 'Include at least one number.');
+
 export const registerSchema = z.object({
   mobile: mobileSchema,
   fullName: fullNameSchema,
-  userType: userTypeSchema,
+  password: passwordSchema,
   email: emailSchema.optional().or(z.literal('').transform(() => undefined)),
   consent: z.literal(true, { errorMap: () => ({ message: 'Please accept the terms and privacy policy.' }) }),
 });
 
-export const otpRequestSchema = z.object({
+export const loginSchema = z.object({
   mobile: mobileSchema,
-  purpose: z.enum(['LOGIN', 'REGISTER']),
-  // Only used when purpose is REGISTER; stored encrypted until the code is verified.
-  fullName: fullNameSchema.optional(),
-  userType: userTypeSchema.optional(),
-  consent: z.boolean().optional(),
-});
-
-export const otpVerifySchema = z.object({
-  mobile: mobileSchema,
-  purpose: z.enum(['LOGIN', 'REGISTER']),
-  code: otpCodeSchema,
+  password: z.string().min(1, 'Enter your password.').max(128),
 });
 
 export const profileUpdateSchema = z.object({

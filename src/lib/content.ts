@@ -37,7 +37,7 @@ export const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: 'What if I suspect a campaign is not genuine?',
-    a: 'Use the Report button on any campaign. Our fraud team reviews each report. Please do not share your OTP or bank password with anyone, including people claiming to be from HelpTrust.',
+    a: 'Use the Report button on any campaign. Our fraud team reviews each report. Please do not share your password or bank details with anyone, including people claiming to be from HelpTrust.',
   },
 ];
 

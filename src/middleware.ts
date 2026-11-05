@@ -4,7 +4,7 @@ import { buildCsp, newNonce } from './lib/csp';
 const SESSION_COOKIE = 'ht_session';
 
 /** Mobile screens anyone can open. Everything else under /app needs a session cookie. */
-const PUBLIC_APP_EXACT = ['/app', '/app/onboarding', '/app/login', '/app/register', '/app/otp', '/app/explore'];
+const PUBLIC_APP_EXACT = ['/app', '/app/onboarding', '/app/login', '/app/register', '/app/explore'];
 const PUBLIC_APP_PREFIXES = ['/app/category/', '/app/campaign/'];
 
 function isPublicApp(pathname: string) {

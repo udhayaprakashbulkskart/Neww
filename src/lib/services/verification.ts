@@ -12,7 +12,7 @@ import { randomBytes } from 'node:crypto';
 
 /**
  * Verification workflow for a beneficiary:
- * mobile OTP (done at sign-in) -> identity (consent-based) -> address -> bank account -> documents.
+ * mobile sign-in (password) -> identity (consent-based) -> address -> bank account -> documents.
  * Provider results are stored as status and reference only. Raw Aadhaar and full account numbers
  * are never stored in plaintext.
  */

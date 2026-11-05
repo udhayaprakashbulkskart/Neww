@@ -1,0 +1,577 @@
+// HelpTrust database schema (PostgreSQL + Prisma).
+// Money is stored in paise (Int). Per-record amounts are capped at Rs 99,00,000 so they fit in INT4.
+// Personal data is stored encrypted (AES-256-GCM) and looked up through keyed HMAC hashes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Enums ----------
+
+enum UserType {
+  BENEFICIARY
+  DONOR
+  BOTH
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OtpPurpose {
+  LOGIN
+  REGISTER
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING            // submitted, waiting for the review queue
+  UNDER_REVIEW
+  ADDITIONAL_INFO_REQUIRED
+  APPROVED           // verified and approved, not yet live
+  PUBLISHED          // live and accepting donations
+  REJECTED
+  CLOSED
+}
+
+enum Urgency {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DocKind {
+  IDENTITY
+  ADDRESS
+  INCOME
+  LOAN_STATEMENT
+  MEDICAL_BILL
+  EDUCATION_FEE
+  BANK_PROOF
+  OTHER
+  PHOTO
+  VIDEO
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ADDITIONAL_REQUIRED
+}
+
+enum VerificationType {
+  MOBILE_OTP
+  IDENTITY
+  ADDRESS
+  BANK_ACCOUNT
+  FINANCIAL_DOCUMENTS
+  LOAN_DOCUMENTS
+}
+
+enum VerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  ADDITIONAL_INFO_REQUIRED
+  VERIFIED
+  REJECTED
+}
+
+enum DonationStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  MOCK
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PROCESSED
+  FAILED
+}
+
+enum FraudSource {
+  SYSTEM_RULE
+  USER_REPORT
+}
+
+enum FraudStatus {
+  OPEN
+  UNDER_INVESTIGATION
+  DISMISSED
+  CONFIRMED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum NotificationType {
+  OTP
+  CAMPAIGN_STATUS
+  DOCUMENT_REVIEW
+  DONATION_RECEIVED
+  PAYMENT_CONFIRMATION
+  REFUND_UPDATE
+  VERIFICATION_UPDATE
+  COMPLAINT_UPDATE
+  SYSTEM
+}
+
+// ---------- Identity and access ----------
+
+model User {
+  id               String     @id @default(cuid())
+  mobileHash       String     @unique          // HMAC-SHA256(mobile, pepper)
+  mobileEncrypted  String                       // AES-256-GCM
+  mobileLast4      String
+  emailHash        String?    @unique
+  emailEncrypted   String?
+  fullName         String
+  userType         UserType   @default(DONOR)
+  status           UserStatus @default(PENDING_VERIFICATION)
+  sessionVersion   Int        @default(0)       // bump to revoke all sessions
+  mobileVerifiedAt DateTime?
+  consentAcceptedAt DateTime?
+  lastLoginAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?
+
+  profile       UserProfile?
+  roles         UserRole[]
+  campaigns     Campaign[]     @relation("BeneficiaryCampaigns")
+  donations     Donation[]
+  verifications Verification[]
+  bankAccounts  BankVerification[]
+  notifications Notification[]
+  savedCampaigns SavedCampaign[]
+  complaints    Complaint[]
+  documents     CampaignDocument[] @relation("Uploader")
+  updates       CampaignUpdate[]
+  refundRequests Refund[]       @relation("RefundRequester")
+  refundDecisions Refund[]      @relation("RefundDecider")
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UserProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addressLine    String?
+  city           String?
+  state          String?
+  pincode        String?
+  occupation     String?
+  avatarUrl      String?
+  locale         String   @default("en-IN")
+  notifyEmail    Boolean  @default(true)
+  notifySms      Boolean  @default(true)
+  notifyWhatsapp Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+
+  @@index([city])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  key         String           @unique            // SUPER_ADMIN, VERIFICATION_OFFICER, ...
+  name        String
+  description String?
+  isSystem    Boolean          @default(true)
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique            // campaign.review, donation.refund, ...
+  description String
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedBy String?
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model OtpCode {
+  id               String     @id @default(cuid())
+  mobileHash       String
+  purpose          OtpPurpose
+  codeHash         String
+  attempts         Int        @default(0)
+  expiresAt        DateTime
+  consumedAt       DateTime?
+  pendingEncrypted String?    // registration payload (name, user type) encrypted until verified
+  createdAt        DateTime   @default(now())
+
+  @@index([mobileHash, purpose, createdAt])
+  @@index([expiresAt])
+}
+
+// ---------- Campaigns ----------
+
+model CampaignCategory {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  name      String
+  icon      String
+  tone      String     @default("mint")   // pastel card tone: yellow | pink | mint | sky
+  sortOrder Int        @default(0)
+  active    Boolean    @default(true)
+  campaigns Campaign[]
+}
+
+model Campaign {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  title          String
+  story          String
+  beneficiaryId  String
+  beneficiary    User           @relation("BeneficiaryCampaigns", fields: [beneficiaryId], references: [id], onDelete: Restrict)
+  categoryId     String
+  category       CampaignCategory @relation(fields: [categoryId], references: [id])
+  city           String
+  state          String
+  status         CampaignStatus @default(DRAFT)
+  urgency        Urgency        @default(MEDIUM)
+  totalDebtPaise     Int        @default(0)
+  paidPaise          Int        @default(0)
+  remainingPaise     Int        @default(0)
+  requestedPaise     Int        @default(0)
+  raisedPaise        Int        @default(0)
+  fundingPercent     Int        @default(0)   // 0-100, kept in sync on every money movement
+  donorCount         Int        @default(0)
+  coverImageUrl      String?
+  featured           Boolean    @default(false)
+  endsAt             DateTime?
+  submittedAt        DateTime?
+  approvedAt         DateTime?
+  publishedAt        DateTime?
+  reviewNote         String?    // note visible to the beneficiary when info is requested
+  rejectionReason    String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  documents     CampaignDocument[]
+  donations     Donation[]
+  updates       CampaignUpdate[]
+  savedBy       SavedCampaign[]
+  complaints    Complaint[]
+  fraudReports  FraudReport[]
+
+  @@index([status, createdAt])
+  @@index([categoryId, status])
+  @@index([city])
+  @@index([beneficiaryId])
+  @@index([featured])
+  @@index([urgency, endsAt])
+  @@index([status, fundingPercent])
+}
+
+model CampaignDocument {
+  id             String       @id @default(cuid())
+  campaignId     String
+  campaign       Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  uploaderId     String
+  uploader       User         @relation("Uploader", fields: [uploaderId], references: [id])
+  kind           DocKind
+  mimeType       String
+  sizeBytes      Int
+  storageKey     String       @unique
+  sha256         String                       // duplicate and tamper detection
+  originalNameEncrypted String
+  sensitive      Boolean      @default(true)  // private: never publicly served
+  reviewStatus   ReviewStatus @default(PENDING)
+  reviewNote     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([campaignId, kind])
+  @@index([sha256])
+}
+
+model CampaignUpdate {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+model SavedCampaign {
+  userId     String
+  campaignId String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@id([userId, campaignId])
+}
+
+// ---------- Verification ----------
+
+model Verification {
+  id           String             @id @default(cuid())
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         VerificationType
+  status       VerificationStatus @default(PENDING)
+  providerName String?
+  providerRef  String?
+  consentAt    DateTime?
+  verifiedAt   DateTime?
+  failureReason String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  reviews      VerificationReview[]
+
+  @@unique([userId, type])
+  @@index([status])
+}
+
+model VerificationReview {
+  id             String       @id @default(cuid())
+  verificationId String
+  verification   Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  reviewerId     String
+  decision       VerificationStatus
+  note           String?
+  createdAt      DateTime     @default(now())
+
+  @@index([verificationId])
+}
+
+model BankVerification {
+  id                   String             @id @default(cuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountHolderName    String
+  accountNumberEncrypted String           // never shown publicly
+  accountHash          String             // HMAC for duplicate account detection
+  accountLast4         String
+  ifscCode             String
+  bankName             String?
+  status               VerificationStatus @default(PENDING)
+  providerRef          String?
+  isPrimary            Boolean            @default(false)
+  verifiedAt           DateTime?
+  failureReason        String?
+  createdAt            DateTime           @default(now())
+
+  @@index([userId, isPrimary])
+  @@index([accountHash])
+}
+
+// ---------- Donations and payments ----------
+
+model Donation {
+  id              String         @id @default(cuid())
+  donorId         String
+  donor           User           @relation(fields: [donorId], references: [id], onDelete: Restrict)
+  campaignId      String
+  campaign        Campaign       @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  amountPaise     Int
+  isAnonymous     Boolean        @default(false)
+  status          DonationStatus @default(PENDING)
+  receiptNumber   String?        @unique
+  idempotencyKey  String         @unique
+  clientIp        String?
+  paidAt          DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  payment Payment?
+  refunds Refund[]
+
+  @@index([campaignId, status])
+  @@index([donorId, createdAt])
+  @@index([clientIp, createdAt])
+}
+
+model Payment {
+  id                 String          @id @default(cuid())
+  donationId         String          @unique
+  donation           Donation        @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  provider           PaymentProvider
+  status             PaymentStatus   @default(CREATED)
+  amountPaise        Int
+  currency           String          @default("INR")
+  providerOrderId    String?         @unique
+  providerPaymentId  String?         @unique
+  method             String?         // upi | card | netbanking | ... (from provider, no card data)
+  errorCode          String?
+  errorDescription   String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([status])
+}
+
+model Refund {
+  id                String       @id @default(cuid())
+  donationId        String
+  donation          Donation     @relation(fields: [donationId], references: [id], onDelete: Restrict)
+  requesterId       String
+  requester         User         @relation("RefundRequester", fields: [requesterId], references: [id])
+  amountPaise       Int
+  reason            String
+  status            RefundStatus @default(REQUESTED)
+  providerRefundId  String?
+  decidedById       String?
+  decider           User?        @relation("RefundDecider", fields: [decidedById], references: [id])
+  decidedAt         DateTime?
+  decisionNote      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([status])
+  @@index([donationId])
+}
+
+model WebhookEvent {
+  id          String    @id                 // provider event id, used for idempotency
+  provider    PaymentProvider
+  eventType   String
+  payloadHash String
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([eventType, receivedAt])
+}
+
+// ---------- Notifications, complaints, fraud, admin ----------
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+model Complaint {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaignId  String?
+  campaign    Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  subject     String
+  body        String
+  status      ComplaintStatus @default(OPEN)
+  assigneeId  String?
+  response    String?
+  createdAt   DateTime        @default(now())
+  resolvedAt  DateTime?
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+model FraudReport {
+  id          String      @id @default(cuid())
+  source      FraudSource
+  ruleCode    String?     // e.g. DUPLICATE_DOCUMENT, DUPLICATE_CAMPAIGN
+  campaignId  String?
+  campaign    Campaign?   @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  userId      String?     // subject of the report, if any
+  reporterId  String?     // user who reported (USER_REPORT)
+  reason      String
+  severity    Severity    @default(LOW)
+  evidence    Json        @default("{}")  // hashes and counts only, never raw personal data
+  status      FraudStatus @default(OPEN)
+  assigneeId  String?
+  resolution  String?
+  createdAt   DateTime    @default(now())
+  resolvedAt  DateTime?
+
+  @@index([status, severity])
+  @@index([ruleCode, createdAt])
+  @@index([campaignId])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json     @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+}
+
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}

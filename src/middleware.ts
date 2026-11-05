@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { buildCsp, newNonce } from './lib/csp';
 
 const SESSION_COOKIE = 'ht_session';
 
@@ -27,6 +28,18 @@ function allowedOrigin(req: NextRequest): boolean {
 }
 
 export function middleware(req: NextRequest) {
+  // Every page and response carries a fresh CSP nonce. Next.js reads the nonce from the request's CSP header
+  // and applies it to its own inline bootstrap scripts.
+  const nonce = newNonce();
+  const csp = buildCsp(nonce, process.env.NODE_ENV !== 'production');
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set('content-security-policy', csp);
+  const res = handle(req, requestHeaders);
+  res.headers.set('Content-Security-Policy', csp);
+  return res;
+}
+
+function handle(req: NextRequest, requestHeaders: Headers): NextResponse {
   const { pathname } = req.nextUrl;
 
   // CSRF: browsers must send a matching Origin for state-changing API calls.
@@ -53,9 +66,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: ['/api/:path*', '/app/:path*', '/admin/:path*'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

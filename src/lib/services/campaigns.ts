@@ -13,6 +13,7 @@ import {
 import { audit } from './audit';
 import { notify } from './notifications';
 import { checkDuplicateCampaign, checkRepeatedCampaigns } from './fraud';
+import { assertNameUnchangedIfVerified } from './profile';
 import {
   campaignDetailsSchema,
   campaignFinancialSchema,
@@ -281,6 +282,7 @@ export async function savePersonalStep(userId: string, campaignId: string, body:
   const c = await assertOwner(userId, campaignId);
   if (!EDITABLE_STATUSES.includes(c.status)) throw errors.invalidState('This campaign can no longer be edited.');
 
+  await assertNameUnchangedIfVerified(userId, data.fullName);
   const user = await db.user.findUnique({ where: { id: userId }, select: { mobileHash: true } });
   // The campaign contact number must be the one the beneficiary verified at sign-in.
   if (!user || keyedHash(data.mobile, 'mobile') !== user.mobileHash) {
@@ -418,12 +420,15 @@ export async function postUpdate(userId: string, campaignId: string, body: strin
   const c = await assertOwner(userId, campaignId);
   if (c.status !== 'PUBLISHED') throw errors.invalidState('Updates can be posted once the campaign is live.');
   const row = await db.campaignUpdate.create({ data: { campaignId, authorId: userId, body }, select: { id: true, body: true, createdAt: true } });
-  const donors = await db.donation.findMany({ where: { campaignId, status: 'SUCCESS' }, distinct: ['donorId'], select: { donorId: true }, take: 500 });
-  await Promise.all(
-    donors.map((d) =>
-      notify({ userId: d.donorId, type: 'CAMPAIGN_STATUS', title: 'New update on a campaign you support', body: body.slice(0, 140), link: `/app/campaign/${c.slug}` }),
-    ),
-  );
+  // Every supporter is told, in chunks so one update does not open thousands of connections at once.
+  const donors = await db.donation.groupBy({ by: ['donorId'], where: { campaignId, status: 'SUCCESS' } });
+  for (let i = 0; i < donors.length; i += 50) {
+    await Promise.all(
+      donors.slice(i, i + 50).map((d) =>
+        notify({ userId: d.donorId, type: 'CAMPAIGN_STATUS', title: 'New update on a campaign you support', body: body.slice(0, 140), link: `/app/campaign/${c.slug}` }),
+      ),
+    );
+  }
   return row;
 }
 

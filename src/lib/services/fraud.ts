@@ -39,6 +39,8 @@ export async function raiseFlag(args: {
       status: { in: ['OPEN', 'UNDER_INVESTIGATION'] },
       campaignId: args.campaignId ?? undefined,
       userId: args.userId ?? undefined,
+      // A user report is de-duplicated per reporter, so each person's report is kept.
+      reporterId: args.reporterId ?? undefined,
     },
     select: { id: true },
   });

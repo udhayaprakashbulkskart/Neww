@@ -41,8 +41,20 @@ export async function getProfile(userId: string) {
   };
 }
 
+/** Once identity is verified, the name must match the verified identity. Changing it needs support. */
+export async function assertNameUnchangedIfVerified(userId: string, newName: string) {
+  const [user, identity] = await Promise.all([
+    db.user.findUnique({ where: { id: userId }, select: { fullName: true } }),
+    db.verification.findUnique({ where: { userId_type: { userId, type: 'IDENTITY' } }, select: { status: true } }),
+  ]);
+  if (identity?.status === 'VERIFIED' && user && user.fullName !== newName.trim()) {
+    throw errors.forbidden('Your name is linked to your verified identity. Contact support to change it.');
+  }
+}
+
 export async function updateProfile(userId: string, body: unknown, ip?: string | null) {
   const data = profileUpdateSchema.parse(body);
+  if (data.fullName) await assertNameUnchangedIfVerified(userId, data.fullName);
   const { notifyEmail, notifySms, notifyWhatsapp, fullName, email, userType, ...address } = data;
 
   const update: Record<string, unknown> = {};

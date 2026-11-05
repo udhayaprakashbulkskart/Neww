@@ -137,3 +137,34 @@ describe('client IP', () => {
     expect(clientIp(req)).toBe('203.0.113.9');
   });
 });
+
+import { reportCampaign, assertNameUnchangedIfVerified } from '@/lib/services/profile';
+
+describe('campaign reports', () => {
+  it('keeps each reporter\'s report, and only de-duplicates the same reporter', async () => {
+    const ben = await makeUser({ userType: 'BENEFICIARY' });
+    const a = await makeUser();
+    const b = await makeUser();
+    const campaign = await makeCampaign({ beneficiaryId: ben.id });
+    const first = await reportCampaign(a.id, campaign.id, 'This campaign looks copied from another page.', null);
+    const second = await reportCampaign(b.id, campaign.id, 'The photo does not match the story described.', null);
+    const again = await reportCampaign(a.id, campaign.id, 'This campaign looks copied from another page.', null);
+    expect(second.reportId).not.toBe(first.reportId);
+    expect(again.reportId).toBe(first.reportId);
+    expect(await db.fraudReport.count({ where: { campaignId: campaign.id, ruleCode: 'USER_REPORT' } })).toBe(2);
+  });
+});
+
+describe('verified identity', () => {
+  it('refuses a name change once identity is verified', async () => {
+    const user = await makeUser({ fullName: 'Lakshmi Devi' });
+    await db.verification.create({ data: { userId: user.id, type: 'IDENTITY', status: 'VERIFIED', verifiedAt: new Date() } });
+    await expect(assertNameUnchangedIfVerified(user.id, 'Lakshmi Ramasamy')).rejects.toThrow(/verified identity/);
+    await expect(assertNameUnchangedIfVerified(user.id, 'Lakshmi Devi')).resolves.toBeUndefined();
+  });
+
+  it('allows a name change before identity is verified', async () => {
+    const user = await makeUser({ fullName: 'Lakshmi Devi' });
+    await expect(assertNameUnchangedIfVerified(user.id, 'Lakshmi Ramasamy')).resolves.toBeUndefined();
+  });
+});

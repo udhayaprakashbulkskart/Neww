@@ -84,7 +84,9 @@ export async function parseBody<T>(req: Request, schema: ZodType<T>, maxBytes = 
 
 export function clientIp(req: Request): string {
   const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim().slice(0, 64);
+  // The platform proxy appends the connecting address, so the rightmost entry is the trusted one.
+  // The leftmost entries are client-supplied and can be forged.
+  if (forwarded) return (forwarded.split(',').pop() ?? '').trim().slice(0, 64) || 'unknown';
   return (req.headers.get('x-real-ip') ?? 'unknown').slice(0, 64);
 }
 

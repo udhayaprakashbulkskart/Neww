@@ -12,8 +12,6 @@ const SETTINGS: { key: string; label: string; kind: 'number' | 'boolean' | 'stri
   { key: 'donation_min_paise', label: 'Minimum donation (paise)', kind: 'number', help: 'Default ₹50 = 5000 paise. Enforced on the server.', fallback: 5000 },
   { key: 'donation_max_paise', label: 'Maximum donation (paise)', kind: 'number', help: 'Default ₹5,00,000 = 50000000 paise.', fallback: 50000000 },
   { key: 'maintenance_mode', label: 'Maintenance mode', kind: 'boolean', help: 'Shows a notice to users. Donations are paused while on.', fallback: false },
-  { key: 'auto_publish_verified', label: 'Auto-publish after approval', kind: 'boolean', help: 'Off by default. Publishing stays a deliberate, separately audited step.', fallback: false },
-  { key: 'support_email', label: 'Support email', kind: 'string', help: 'Shown in help and legal pages.', fallback: 'support@helptrust.in' },
 ];
 
 export default async function SettingsAdmin() {

@@ -213,6 +213,6 @@ export const notificationPrefsSchema = profileUpdateSchema.pick({
 });
 
 export const settingSchema = z.object({
-  key: z.enum(['donation_min_paise', 'donation_max_paise', 'maintenance_mode', 'auto_publish_verified', 'support_email']),
+  key: z.enum(['donation_min_paise', 'donation_max_paise', 'maintenance_mode']),
   value: z.union([z.number(), z.boolean(), z.string()]),
 });

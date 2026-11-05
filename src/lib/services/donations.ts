@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import type { Prisma, RefundStatus } from '@prisma/client';
 import { db } from '../db';
 import { env } from '../env';
-import { errors } from '../http';
+import { ApiError, errors } from '../http';
 import { percent, publicName } from '../format';
 import { rateLimit } from '../rate-limit';
 import { getPaymentGateway } from '../providers/payments';
@@ -14,6 +14,21 @@ import { donationCreateSchema, donationVerifySchema } from '../validation/schema
 import type { z } from 'zod';
 
 export const REFUND_WINDOW_DAYS = 7;
+
+/** A checkout that has not been paid within this window no longer holds campaign capacity. */
+const CHECKOUT_WINDOW_MS = 30 * 60_000;
+
+/** Admin-configurable limits, falling back to environment defaults. */
+async function donationLimits() {
+  const rows = await db.platformSetting.findMany({ where: { key: { in: ['donation_min_paise', 'donation_max_paise', 'maintenance_mode'] } } });
+  const v = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const e = env();
+  return {
+    min: typeof v.donation_min_paise === 'number' ? v.donation_min_paise : e.DONATION_MIN_PAISE,
+    max: typeof v.donation_max_paise === 'number' ? v.donation_max_paise : e.DONATION_MAX_PAISE,
+    maintenance: v.maintenance_mode === true,
+  };
+}
 
 /** Keys the browser needs to open checkout. Never includes a secret. */
 export function checkoutConfig() {
@@ -52,9 +67,10 @@ export async function recalcCampaign(tx: Prisma.TransactionClient, campaignId: s
  */
 export async function createDonation(args: { donorId: string; body: unknown; ip: string | null }) {
   const input = donationCreateSchema.parse(args.body);
-  const e = env();
-  if (input.amountPaise < e.DONATION_MIN_PAISE || input.amountPaise > e.DONATION_MAX_PAISE) {
-    throw errors.badRequest('Choose an amount between ₹50 and ₹5,00,000.');
+  const limits = await donationLimits();
+  if (limits.maintenance) throw new ApiError(503, 'MAINTENANCE', 'Donations are paused for maintenance. Please try again shortly.');
+  if (input.amountPaise < limits.min || input.amountPaise > limits.max) {
+    throw errors.badRequest(`Choose an amount between ₹${Math.ceil(limits.min / 100)} and ₹${Math.floor(limits.max / 100).toLocaleString('en-IN')}.`);
   }
   rateLimit(`donate:${args.donorId}`, 20, 60 * 60_000);
 
@@ -87,17 +103,30 @@ export async function createDonation(args: { donorId: string; body: unknown; ip:
   const gateway = getPaymentGateway();
   let donation;
   try {
-    donation = await db.donation.create({
-      data: {
-        donorId: args.donorId,
-        campaignId: campaign.id,
-        amountPaise: input.amountPaise,
-        isAnonymous: input.isAnonymous,
-        idempotencyKey: input.idempotencyKey,
-        clientIp: args.ip,
-        payment: { create: { provider: gateway.name, amountPaise: input.amountPaise, status: 'CREATED' } },
-      },
-      include: { payment: true, campaign: { select: { title: true, slug: true } } },
+    donation = await db.$transaction(async (tx) => {
+      // Lock the campaign row so concurrent starts are serialised, then count checkouts still in progress.
+      await tx.$queryRaw`SELECT id FROM "Campaign" WHERE id = ${campaign.id} FOR UPDATE`;
+      const fresh = await tx.campaign.findUniqueOrThrow({ where: { id: campaign.id }, select: { requestedPaise: true, raisedPaise: true } });
+      const inFlight = await tx.donation.aggregate({
+        where: { campaignId: campaign.id, status: 'PENDING', createdAt: { gte: new Date(Date.now() - CHECKOUT_WINDOW_MS) } },
+        _sum: { amountPaise: true },
+      });
+      const available = fresh.requestedPaise - fresh.raisedPaise - (inFlight._sum.amountPaise ?? 0);
+      if (input.amountPaise > available) {
+        throw errors.invalidState('Other donations to this campaign are being processed. Please try a smaller amount or try again in a few minutes.');
+      }
+      return tx.donation.create({
+        data: {
+          donorId: args.donorId,
+          campaignId: campaign.id,
+          amountPaise: input.amountPaise,
+          isAnonymous: input.isAnonymous,
+          idempotencyKey: input.idempotencyKey,
+          clientIp: args.ip,
+          payment: { create: { provider: gateway.name, amountPaise: input.amountPaise, status: 'CREATED' } },
+        },
+        include: { payment: true, campaign: { select: { title: true, slug: true } } },
+      });
     });
   } catch (err) {
     if ((err as { code?: string }).code === 'P2002') {
@@ -277,10 +306,12 @@ export async function decideRefund(args: { actorId: string; refundId: string; de
 
   const paymentId = refund.donation.payment?.providerPaymentId;
   if (!paymentId) throw errors.invalidState('The payment reference is missing, so this refund cannot be sent.');
-  await db.refund.update({
-    where: { id: refund.id },
+  // Atomic claim: only one concurrent approval can move REQUESTED -> APPROVED and send the money.
+  const claimed = await db.refund.updateMany({
+    where: { id: refund.id, status: 'REQUESTED' },
     data: { status: 'APPROVED', decidedById: args.actorId, decidedAt: new Date(), decisionNote: args.note },
   });
+  if (claimed.count === 0) throw errors.invalidState('This refund is already being processed or has been decided.');
   await audit({ actorId: args.actorId, action: 'refund.approved', entityType: 'Refund', entityId: refund.id, metadata: { amountPaise: refund.amountPaise }, ip: args.ip });
 
   try {
@@ -292,9 +323,10 @@ export async function decideRefund(args: { actorId: string; refundId: string; de
     }
     return { status: result.status === 'processed' ? ('PROCESSED' as RefundStatus) : ('APPROVED' as RefundStatus) };
   } catch {
-    await db.refund.update({ where: { id: refund.id }, data: { status: 'FAILED' } });
+    // Return to REQUESTED so a finance officer can approve again once the provider is reachable.
+    await db.refund.updateMany({ where: { id: refund.id, status: 'APPROVED' }, data: { status: 'REQUESTED' } });
     await audit({ actorId: args.actorId, action: 'refund.failed', entityType: 'Refund', entityId: refund.id, ip: args.ip });
-    throw errors.invalidState('The refund could not be sent to the payment provider. It has been marked for retry.');
+    throw errors.invalidState('The refund could not be sent to the payment provider. It is still awaiting approval, so you can try again.');
   }
 }
 

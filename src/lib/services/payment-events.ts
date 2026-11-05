@@ -53,6 +53,19 @@ export async function handleWebhook(args: { rawBody: string; signature: string |
     throw err;
   }
 
+  try {
+    await applyEvent(event);
+  } catch (err) {
+    // Processing failed, so release the de-duplication row. The provider's retry must be applied, not dropped.
+    await db.webhookEvent.delete({ where: { id } }).catch(() => undefined);
+    throw err;
+  }
+
+  await db.webhookEvent.update({ where: { id }, data: { processedAt: new Date() } });
+  return { received: true, duplicate: false };
+}
+
+async function applyEvent(event: { event: string; payload?: Record<string, { entity: unknown }> }) {
   switch (event.event) {
     case 'payment.captured': {
       const p = event.payload?.payment?.entity as RazorpayPaymentEntity;
@@ -76,8 +89,6 @@ export async function handleWebhook(args: { rawBody: string; signature: string |
       break;
   }
 
-  await db.webhookEvent.update({ where: { id }, data: { processedAt: new Date() } });
-  return { received: true, duplicate: false };
 }
 
 async function nextReceipt(): Promise<string> {

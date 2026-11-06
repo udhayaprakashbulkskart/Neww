@@ -42,6 +42,28 @@ export function middleware(req: NextRequest) {
 function handle(req: NextRequest, requestHeaders: Headers): NextResponse {
   const { pathname } = req.nextUrl;
 
+  // Separate admin host (ADMIN_HOST, e.g. admin.fasthelp.online). Unset = admin stays on the main site.
+  const adminHost = process.env.ADMIN_HOST?.trim().toLowerCase();
+  if (adminHost) {
+    const host = (req.headers.get('host') ?? '').split(':')[0].toLowerCase();
+    if (host === adminHost) {
+      const isAdminArea = pathname.startsWith('/admin') || pathname.startsWith('/api/') || pathname.startsWith('/_next/');
+      const isStaticFile = /\.[a-z0-9]+$/i.test(pathname);
+      if (!isAdminArea && !isStaticFile) {
+        const url = req.nextUrl.clone();
+        url.pathname = '/admin';
+        url.search = '';
+        return NextResponse.redirect(url);
+      }
+    } else if (pathname.startsWith('/admin')) {
+      const url = req.nextUrl.clone();
+      url.host = adminHost;
+      url.port = '';
+      url.pathname = pathname === '/admin' ? '/admin' : pathname;
+      return NextResponse.redirect(url);
+    }
+  }
+
   // CSRF: browsers must send a matching Origin for state-changing API calls.
   // Provider webhooks are authenticated by signature instead.
   if (pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method) && !pathname.startsWith('/api/webhooks/')) {

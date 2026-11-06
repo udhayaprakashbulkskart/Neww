@@ -16,7 +16,6 @@ const ICON: Partial<Record<string, IconName>> = {
   VERIFICATION_UPDATE: 'idCard',
   REFUND_UPDATE: 'refund',
   COMPLAINT_UPDATE: 'help',
-  OTP: 'lock',
 };
 
 export default async function NotificationsPage() {

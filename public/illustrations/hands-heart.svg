@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" role="img" aria-labelledby="t d">
+  <title id="t">Two hands holding a heart</title>
+  <desc id="d">Illustration of two open hands cupping a glowing mint heart, symbolising shared support.</desc>
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#8DFFCB" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#5CFFB1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="heart" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8DFFCB"/>
+      <stop offset="55%" stop-color="#5CFFB1"/>
+      <stop offset="100%" stop-color="#1FBF80"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F6DCC2"/>
+      <stop offset="100%" stop-color="#E9BE98"/>
+    </linearGradient>
+  </defs>
+  <circle cx="240" cy="170" r="170" fill="url(#glow)"/>
+  <circle cx="240" cy="170" r="120" fill="none" stroke="#5CFFB1" stroke-opacity="0.18" stroke-width="2" stroke-dasharray="6 10"/>
+  <g class="pulse">
+    <path d="M240 262c-8 0-16-3-22-9-42-36-66-59-66-92 0-26 20-46 45-46 14 0 28 7 43 22 15-15 29-22 43-22 25 0 45 20 45 46 0 33-24 56-66 92-6 6-14 9-22 9z" fill="url(#heart)"/>
+    <path d="M186 165h18l8-16 14 30 9-14h19" fill="none" stroke="#050706" stroke-opacity="0.55" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path d="M60 230c20-6 44-10 70-8 34 3 52 26 88 26 16 0 30-6 40-14l-14-22c-10 8-20 11-28 11-20 0-34-14-54-14-28 0-48 6-76 6-16 0-30-2-46-7z" fill="url(#skin)"/>
+  <path d="M58 226c-6 6-6 16 2 22 12 9 34 8 56 3 22-5 38-2 56 8 16 9 34 11 52 8l4-18c-18 3-30 0-44-7-22-11-40-14-62-9-24 5-44 2-64-7z" fill="url(#skin)"/>
+  <path d="M420 230c-20-6-44-10-70-8-34 3-52 26-88 26-16 0-30-6-40-14l14-22c10 8 20 11 28 11 20 0 34-14 54-14 28 0 48 6 76 6 16 0 30-2 46-7z" fill="url(#skin)"/>
+  <path d="M422 226c6 6 6 16-2 22-12 9-34 8-56 3-22-5-38-2-56 8-16 9-34 11-52 8l-4-18c18 3 30 0 44-7 22-11 40-14 62-9 24 5 44 2 64-7z" fill="url(#skin)"/>
+  <g fill="#5CFFB1" opacity="0.9">
+    <circle cx="90" cy="110" r="5"/><circle cx="390" cy="96" r="4"/><circle cx="410" cy="150" r="3"/><circle cx="70" cy="160" r="3"/>
+  </g>
+  <path d="M120 80l8 8M360 60l-8 8M240 26v14" stroke="#5CFFB1" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+</svg>

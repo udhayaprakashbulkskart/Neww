@@ -9,7 +9,7 @@ export default function PrivacyPage() {
         <p>Your name, mobile number, optional email, address, and the details you give us to request help or to verify your identity. When you donate, we record the amount, campaign and payment status. We do not store card numbers or UPI PINs; our payment provider handles those.</p>
       </LegalSection>
       <LegalSection title="Why we collect it">
-        <p>To run the platform, verify requests before publication, prevent fraud, send you confirmations and OTPs, issue receipts and meet our legal obligations, including KYC and anti-money-laundering requirements.</p>
+        <p>To run the platform, verify requests before publication, prevent fraud, send you confirmations and alerts, issue receipts and meet our legal obligations, including KYC and anti-money-laundering requirements.</p>
       </LegalSection>
       <LegalSection title="Consent and your rights">
         <p>We ask for consent before identity checks. Under the Digital Personal Data Protection Act, 2023, you may ask what we hold about you, ask us to correct it, withdraw consent where the law allows, and ask for erasure. Some records, such as donation and payment records, must be kept for longer.</p>

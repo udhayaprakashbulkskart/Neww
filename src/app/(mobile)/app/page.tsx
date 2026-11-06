@@ -17,11 +17,8 @@ export default async function SplashPage() {
       </div>
 
       <div className="relative mt-auto">
-        <div className="mb-10 flex h-[220px] items-center justify-center" aria-hidden="true">
-          <div className="relative flex h-44 w-44 items-center justify-center rounded-full border border-mint/20 bg-gradient-to-b from-mint/20 to-transparent">
-            <div className="absolute inset-4 rounded-full border border-mint/10" />
-            <Icon name="heart" className="h-20 w-20 text-mint" strokeWidth={1.2} />
-          </div>
+        <div className="mb-8 flex h-[220px] items-center justify-center animate-rise">
+          <img src="/illustrations/hands-heart.svg" alt="" className="animate-float h-full w-auto" />
         </div>
         <h1 className="text-balance text-[40px] font-extrabold leading-[1.05] tracking-tight">
           Real People.

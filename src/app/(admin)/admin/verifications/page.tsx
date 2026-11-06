@@ -11,7 +11,7 @@ export const metadata = { title: 'Verification queue' };
 export default async function VerificationQueue() {
   const { user, perms } = await adminContext(PERMISSIONS.VERIFICATION_REVIEW);
   const rows = await db.verification.findMany({
-    where: { status: { in: ['PENDING', 'UNDER_REVIEW', 'ADDITIONAL_INFO_REQUIRED'] }, type: { not: 'MOBILE_OTP' } },
+    where: { status: { in: ['PENDING', 'UNDER_REVIEW', 'ADDITIONAL_INFO_REQUIRED'] }, },
     orderBy: { updatedAt: 'asc' },
     take: 100,
     select: {

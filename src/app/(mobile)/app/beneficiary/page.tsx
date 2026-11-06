@@ -9,6 +9,8 @@ import { TopBar } from '@/components/mobile/shell';
 import { Avatar, EmptyState, ProgressBar, SectionHeader, StatusPill } from '@/components/ui/primitives';
 import { Icon } from '@/components/ui/icons';
 import { PostUpdate } from '@/components/mobile/forms/post-update';
+import { PostFeeGate } from '@/components/billing/post-fee-gate';
+import { postFeeStatus } from '@/lib/services/billing';
 
 export const metadata = { title: 'Beneficiary dashboard' };
 
@@ -25,6 +27,17 @@ const TONE: Record<string, 'mint' | 'amber' | 'red' | 'grey' | 'sky'> = {
 
 export default async function BeneficiaryPage() {
   const user = await requirePageUser('/app/beneficiary');
+  const fee = await postFeeStatus(user.id);
+  if (!fee.hasDashboardAccess) {
+    return (
+      <main className="pb-36">
+        <TopBar back="/app/donor" title="My dashboard" />
+        <div className="px-5">
+          <PostFeeGate feePaise={fee.feePaise} reason="dashboard" />
+        </div>
+      </main>
+    );
+  }
   const [campaigns, summary, profile] = await Promise.all([listMyCampaigns(user.id), verificationSummary(user.id), getProfile(user.id)]);
 
   const totals = campaigns.reduce(

@@ -94,6 +94,17 @@
   .eyebrow {
     @apply text-[12px] font-semibold uppercase tracking-[0.18em] text-mint;
   }
+  .progress-grow {
+    transform-origin: left center;
+    animation: grow 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .lift {
+    @apply transition duration-300 ease-out hover:-translate-y-1 hover:shadow-glow-soft;
+  }
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
   .skeleton {
     @apply animate-shimmer rounded-2xl bg-[linear-gradient(90deg,#131B18_25%,#1B2622_50%,#131B18_75%)] bg-[length:800px_100%];
   }
@@ -113,6 +124,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-marquee,
+  .animate-breathe {
+    animation: none !important;
+  }
   *,
   *::before,
   *::after {

@@ -8,7 +8,7 @@ export async function resetDatabase() {
   if (!url.includes('helptrust_test')) throw new Error('Refusing to reset a non-test database.');
   await db.$executeRawUnsafe(`
     TRUNCATE TABLE
-      "WebhookEvent", "Refund", "Payment", "Donation", "SavedCampaign", "CampaignUpdate", "CampaignDocument",
+      "PostFee", "WebhookEvent", "Refund", "Payment", "Donation", "SavedCampaign", "CampaignUpdate", "CampaignDocument",
       "FraudReport", "Complaint", "Notification", "AdminAuditLog", "PlatformSetting", "VerificationReview",
       "Verification", "BankVerification", "Campaign", "CampaignCategory", "UserRole", "UserProfile",
       "RolePermission", "Role", "Permission", "User"

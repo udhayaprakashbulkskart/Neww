@@ -17,7 +17,7 @@ Repository: `Neww` (branch `ccr-e8a20e07-sdl64k`).
 | Mobile app (31 screens) | `src/app/(mobile)/app/*`. Splash, onboarding, login, registration, user type, home, explore, category, campaign detail, 8-step campaign wizard, pending/approved status, donation selection, payment, success/failed, history, saved, notifications, beneficiary and donor dashboards, settings, help. Bottom navigation on tab roots. |
 | Website (12 pages) | `src/app/(site)/*`. Home (live stats), About, How it works, Explore, Campaign details, Request help, Support a cause, Contact, FAQ, Privacy, Terms, Refund policy. |
 | Admin dashboard | `src/app/(admin)/admin/*`. Desktop sidebar with all 15 sections, role-filtered. Campaign review, document review, verification queue, refunds, fraud, complaints, analytics and CSV exports, staff roles, settings, audit history. |
-| Campaigns | Draft/save per step, submission checklist, state machine (`src/lib/state/campaign-machine.ts`), publication only after approval. |
+| Campaigns | Draft/save per step, submission checklist, state machine (`src/lib/state/campaign-machine.ts`), publication only after approval. Each campaign post costs a one-time Rs 100 post fee; the beneficiary dashboard and campaign creation stay locked until it is paid (`src/lib/services/billing.ts`). |
 | Verification | Identity and address checks (consent-based, provider adapter), bank account verification with encrypted account numbers, document review, manual review queue. |
 | Documents | Type checked by file signature (magic bytes), AES-256-GCM encrypted at rest, private storage outside `public/`, HMAC-signed 5-minute download links, public access only for approved photos/videos on live campaigns. |
 | Donations | Idempotent order creation, Razorpay Checkout (or sandbox mock), checkout signature check, **webhook-only settlement** with signature over the raw body and event-id de-duplication, amount-mismatch hold, receipts (HTML, print to PDF), refund requests and finance approval. |
@@ -154,6 +154,12 @@ HelpTrust is built with these obligations in mind; it is not a claim of complian
 * **Consumer protection:** refund policy, grievance contact and transparent campaign status are shown in the product.
 
 ---
+
+## Post fee (paywall)
+
+* Each campaign post costs Rs 100 (`POST_FEE_PAISE`). Paying creates one credit; creating a campaign reserves it.
+* The beneficiary dashboard opens only after at least one post fee is paid. The public website and donations are not gated.
+* The fee is credited only by the verified webhook (`payment.captured`). Sandbox mode completes the same signed webhook from the simulator.
 
 ## Architecture
 

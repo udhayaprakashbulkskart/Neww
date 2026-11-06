@@ -4,6 +4,7 @@ import { formatINRCompact } from '@/lib/format';
 import { Icon, type IconName } from '@/components/ui/icons';
 import { CampaignTile } from '@/components/mobile/campaign-card';
 import { SectionHeader } from '@/components/ui/primitives';
+import { CountUp } from '@/components/ui/count-up';
 
 export const metadata = {
   title: 'Home',
@@ -66,21 +67,17 @@ export default async function HomePage() {
             <p className="mt-6 text-xs text-ui-subtle">Totals below are live figures from our platform records.</p>
           </div>
 
-          {/* Verified-trust composition: stylised, no stock imagery */}
-          <div className="relative mx-auto w-full max-w-md">
-            <div className="surface p-6 shadow-glow">
-              <div className="flex items-center justify-between">
+          <div className="relative mx-auto w-full max-w-md animate-rise delay-200">
+            <div aria-hidden="true" className="absolute inset-0 -z-10 rounded-full bg-mint/10 blur-3xl animate-breathe" />
+            <img src="/illustrations/hands-heart.svg" alt="Two hands holding a glowing heart" className="animate-float w-full drop-shadow-[0_30px_60px_rgba(92,255,177,0.18)]" />
+            <div className="surface absolute -bottom-4 left-4 right-4 p-4 shadow-glow lift animate-rise delay-400">
+              <div className="flex items-center justify-between text-sm">
                 <span className="pill bg-emerald/15 text-emerald-400">
                   <Icon name="checkCircle" className="h-3.5 w-3.5" strokeWidth={2.4} />
                   Verified
                 </span>
-                <span className="text-xs text-ui-subtle">Live campaign</span>
+                <span className="text-xs text-ui-subtle">Every request is checked</span>
               </div>
-              <div className="mt-6 flex h-40 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald/25 via-ink-700 to-ink-900">
-                <Icon name="heart" className="h-16 w-16 text-mint/80" strokeWidth={1.2} />
-              </div>
-              <p className="mt-6 text-lg font-bold leading-snug">Verified campaigns, reviewed by people</p>
-              <p className="mt-2 text-sm leading-relaxed text-ui-muted">Identity, address, bank account and bills are checked before a campaign can be published.</p>
             </div>
           </div>
         </div>
@@ -88,23 +85,23 @@ export default async function HomePage() {
         {/* Live stats */}
         <div className="relative border-y border-white/[0.06] bg-ink-900/70">
           <dl className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-5 py-8 md:grid-cols-4 lg:px-8">
-            <Stat label="Campaigns funded" value={s.campaignsFunded.toLocaleString('en-IN')} />
-            <Stat label="Raised so far" value={formatINRCompact(s.totalRaisedPaise)} />
-            <Stat label="Verified campaigns" value={s.verifiedCampaigns.toLocaleString('en-IN')} />
-            <Stat label="Donors" value={s.donors.toLocaleString('en-IN')} />
+            <Stat label="Campaigns funded" value={<CountUp value={s.campaignsFunded} />} />
+            <Stat label="Raised so far" value={<CountUp value={Math.round(s.totalRaisedPaise / 100)} mode="inrCompactRupees" />} />
+            <Stat label="Verified campaigns" value={<CountUp value={s.verifiedCampaigns} />} />
+            <Stat label="Donors" value={<CountUp value={s.donors} />} />
           </dl>
         </div>
       </section>
 
       {/* Categories */}
-      <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8" aria-labelledby="cats-h">
+      <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8 animate-rise" aria-labelledby="cats-h">
         <SectionHeader title="Find a cause that matters to you" />
         <h2 id="cats-h" className="sr-only">
           Categories
         </h2>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           {data.categories.map((c) => (
-            <Link key={c.id} href={`/explore?category=${c.slug}`} className="surface flex flex-col gap-4 p-5 transition hover:-translate-y-0.5 hover:border-mint/25">
+            <Link key={c.id} href={`/explore?category=${c.slug}`} className="surface lift flex flex-col gap-4 p-5 hover:border-mint/25">
               <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${c.tone === 'yellow' ? 'bg-pastel-yellow' : c.tone === 'pink' ? 'bg-pastel-pink' : c.tone === 'sky' ? 'bg-pastel-sky' : 'bg-pastel-mint'} text-ink-950`}>
                 <Icon name={c.slug === 'debt-relief' ? 'wallet' : c.slug === 'medical' ? 'heart' : c.slug === 'education' ? 'file' : c.slug === 'family' ? 'users' : c.slug === 'emergency' ? 'alert' : 'chart'} className="h-5 w-5" />
               </span>
@@ -124,7 +121,7 @@ export default async function HomePage() {
         </div>
         <ol className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((step, i) => (
-            <li key={step.title} className="surface relative p-6">
+            <li key={step.title} className="surface lift relative p-6">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-mint/15 text-mint">
                 <Icon name={step.icon} className="h-6 w-6" />
               </span>
@@ -189,7 +186,7 @@ export default async function HomePage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wider text-ui-subtle">{label}</dt>

@@ -9,6 +9,7 @@ import { notify } from './notifications';
 import { flagAmountMismatch } from './fraud';
 import { markRefundProcessed, recalcCampaign, verifyCheckout } from './donations';
 import { formatINR } from '../format';
+import { markPostFeeFailed, markPostFeePaid } from './billing';
 
 /**
  * Webhook processing is the ONLY place a donation becomes successful.
@@ -98,6 +99,7 @@ async function nextReceipt(): Promise<string> {
 }
 
 export async function applyCaptured(args: { orderId: string; paymentId: string; amountPaise: number; method: string | null }) {
+  if (await markPostFeePaid({ orderId: args.orderId, paymentId: args.paymentId, amountPaise: args.amountPaise })) return;
   const payment = await db.payment.findUnique({
     where: { providerOrderId: args.orderId },
     include: { donation: { select: { id: true, donorId: true, campaignId: true, amountPaise: true, status: true, campaign: { select: { beneficiaryId: true, title: true } } } } },
@@ -148,6 +150,7 @@ export async function applyCaptured(args: { orderId: string; paymentId: string; 
 }
 
 export async function applyFailed(args: { orderId: string; paymentId: string; code: string; description: string | null }) {
+  await markPostFeeFailed(args.orderId);
   const payment = await db.payment.findUnique({ where: { providerOrderId: args.orderId }, include: { donation: { select: { id: true, donorId: true, status: true } } } });
   if (!payment || payment.status === 'CAPTURED') return;
   await db.$transaction([
@@ -194,6 +197,20 @@ export async function simulateMockPayment(args: { donorId: string; donationId: s
   const body = JSON.stringify({
     event: 'payment.captured',
     payload: { payment: { entity: { id: paymentId, order_id: orderId, amount: donation.payment.amountPaise, method: 'upi' } } },
+  });
+  return handleWebhook({ rawBody: body, signature: mockSignWebhook(body), eventId: `evt_mock_${crypto.randomBytes(6).toString('hex')}`, ip: args.ip });
+}
+
+/**
+ * Sandbox only: completes any mock order through the same signed webhook used in production.
+ * Refused whenever sandbox mode is off or a real gateway is configured.
+ */
+export async function simulateOrderCapture(args: { orderId: string; amountPaise: number; ip: string | null }) {
+  if (!env().sandboxAllowed || getPaymentGateway().name !== 'MOCK') throw errors.notFound('Simulator');
+  const paymentId = `pay_mock_${crypto.randomBytes(8).toString('hex')}`;
+  const body = JSON.stringify({
+    event: 'payment.captured',
+    payload: { payment: { entity: { id: paymentId, order_id: args.orderId, amount: args.amountPaise, method: 'upi' } } },
   });
   return handleWebhook({ rawBody: body, signature: mockSignWebhook(body), eventId: `evt_mock_${crypto.randomBytes(6).toString('hex')}`, ip: args.ip });
 }

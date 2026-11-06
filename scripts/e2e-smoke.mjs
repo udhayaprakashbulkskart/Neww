@@ -151,6 +151,18 @@ async function main() {
   const typeSet = await ben.call('PATCH', '/api/profile', { json: { userType: 'BENEFICIARY' } });
   check('user chooses beneficiary type', typeSet.status === 200);
 
+  const lockedDraft = await ben.call('POST', '/api/campaigns', { json: {} });
+  check('campaign creation is locked until the Rs 100 post fee is paid (402)', lockedDraft.status === 402);
+  const lockedDash = await ben.call('GET', '/app/beneficiary');
+  check('dashboard shows the paywall before payment', lockedDash.status === 200 && lockedDash.text.includes('Pay to open your dashboard'));
+
+  const feeOrder = await ben.call('POST', '/api/billing/post-fee', { json: {} });
+  check('post fee order is created for Rs 100', feeOrder.status === 201 && feeOrder.data?.data?.amountPaise === 10000);
+  const feePaid = await ben.call('POST', `/api/billing/post-fee/${feeOrder.data?.data?.postFeeId}/simulate`, { json: {} });
+  check('post fee is credited only through the signed webhook', feePaid.status === 200 && feePaid.data?.data?.received === true);
+  const feeStatus = await ben.call('GET', '/api/billing/status');
+  check('paid post fee opens the dashboard and reserves one credit', feeStatus.data?.data?.hasDashboardAccess === true && feeStatus.data?.data?.availableCredits === 1);
+
   const draft = await ben.call('POST', '/api/campaigns', { json: {} });
   const campaignId = draft.data?.data?.id;
   check('wizard creates a draft', draft.status === 201 && !!campaignId);

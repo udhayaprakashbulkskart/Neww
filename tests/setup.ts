@@ -8,5 +8,4 @@ process.env.KYC_PROVIDER = 'mock';
 process.env.SMS_PROVIDER = 'console';
 process.env.EMAIL_PROVIDER = 'console';
 process.env.STORAGE_DIR = './storage/test-private';
-process.env.OTP_MAX_ATTEMPTS = '5';
 process.env.FRAUD_DONATIONS_PER_HOUR_PER_IP = '25';

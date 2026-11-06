@@ -74,11 +74,31 @@ const config: Config = {
           '0%': { backgroundPosition: '-400px 0' },
           '100%': { backgroundPosition: '400px 0' },
         },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-12px)' },
+        },
+        grow: {
+          from: { transform: 'scaleX(0)' },
+          to: { transform: 'scaleX(1)' },
+        },
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
+        breathe: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.04)' },
+        },
       },
       animation: {
         rise: 'rise 0.45s cubic-bezier(0.22,1,0.36,1) both',
         pulseMint: 'pulseMint 2.2s ease-out infinite',
         shimmer: 'shimmer 1.4s linear infinite',
+        float: 'float 6s ease-in-out infinite',
+        grow: 'grow 1.1s cubic-bezier(0.22,1,0.36,1) both',
+        marquee: 'marquee 28s linear infinite',
+        breathe: 'breathe 4s ease-in-out infinite',
       },
     },
   },

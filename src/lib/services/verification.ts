@@ -18,7 +18,6 @@ import { randomBytes } from 'node:crypto';
  */
 
 export const VERIFICATION_LABELS: Record<VerificationType, string> = {
-  MOBILE_OTP: 'Mobile number',
   IDENTITY: 'Identity',
   ADDRESS: 'Address',
   BANK_ACCOUNT: 'Bank account',
@@ -38,9 +37,6 @@ export async function verificationSummary(userId: string) {
   ]);
   const byType = new Map(rows.map((r) => [r.type, r]));
   const items = (Object.keys(VERIFICATION_LABELS) as VerificationType[]).map((type) => {
-    if (type === 'MOBILE_OTP') {
-      return { type, label: VERIFICATION_LABELS[type], status: user?.mobileVerifiedAt ? 'VERIFIED' : 'PENDING', verifiedAt: user?.mobileVerifiedAt ?? null, failureReason: null };
-    }
     const r = byType.get(type);
     return {
       type,

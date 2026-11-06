@@ -14,6 +14,7 @@ import { audit } from './audit';
 import { notify } from './notifications';
 import { checkDuplicateCampaign, checkRepeatedCampaigns } from './fraud';
 import { assertNameUnchangedIfVerified } from './profile';
+import { reserveCreditForCampaign } from './billing';
 import {
   campaignDetailsSchema,
   campaignFinancialSchema,
@@ -241,7 +242,7 @@ export async function createDraft(userId: string) {
 
   const campaign = await db.$transaction(async (tx) => {
     if (user.userType === 'DONOR') await tx.user.update({ where: { id: userId }, data: { userType: 'BOTH' } });
-    return tx.campaign.create({
+    const created = await tx.campaign.create({
       data: {
         slug: `draft-${crypto.randomBytes(5).toString('hex')}`,
         title: 'Untitled campaign',
@@ -255,6 +256,8 @@ export async function createDraft(userId: string) {
       },
       select: { id: true },
     });
+    await reserveCreditForCampaign(tx, userId, created.id);
+    return created;
   });
   return campaign;
 }

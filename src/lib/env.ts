@@ -16,8 +16,6 @@ const schema = z.object({
   FILE_SIGNING_SECRET: z.string().optional(),
   STORAGE_DIR: z.string().default('./storage/private'),
   MAX_UPLOAD_MB: z.coerce.number().positive().default(10),
-  OTP_TTL_SECONDS: z.coerce.number().positive().default(300),
-  OTP_MAX_ATTEMPTS: z.coerce.number().positive().default(5),
   SMS_PROVIDER: z.enum(['console', 'none']).default('console'),
   EMAIL_PROVIDER: z.enum(['console', 'none']).default('console'),
   WHATSAPP_PROVIDER: z.enum(['none']).default('none'),
@@ -85,7 +83,7 @@ export function env(): Env {
     }
   }
   if (isProduction && sandboxAllowed) {
-    console.warn('[sandbox] Production build running in SANDBOX mode: mock payments, mock KYC and console messaging. No real money moves and no real OTPs are sent.');
+    console.warn('[sandbox] Production build running in SANDBOX mode: mock payments, mock KYC and console messaging. No real money moves and no real messages are sent.');
   }
 
   cached = {

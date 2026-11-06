@@ -17,7 +17,7 @@ export function ProgressBar({ value, tone = 'mint', label }: { value: number; to
   return (
     <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={v} aria-label={label ?? `${v}% funded`} className="h-2 w-full overflow-hidden rounded-full bg-black/10">
       <div
-        className={`h-full rounded-full transition-[width] duration-700 ease-out ${tone === 'mint' ? 'bg-gradient-to-r from-emerald-500 to-mint' : 'bg-gradient-to-r from-emerald to-mint-300'}`}
+        className={`progress-grow h-full rounded-full ${tone === 'mint' ? 'bg-gradient-to-r from-emerald-500 to-mint' : 'bg-gradient-to-r from-emerald to-mint-300'}`}
         style={{ width: `${v}%` }}
       />
     </div>
@@ -39,11 +39,9 @@ export function CampaignImage({ src, name, className = '' }: { src: string | nul
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={src} alt={`Campaign photo for ${name}`} loading="lazy" className={`object-cover ${className}`} />;
   }
-  return (
-    <div role="img" aria-label={`${name}: photo pending verification`} className={`flex items-center justify-center bg-gradient-to-br from-emerald/30 via-ink-700 to-ink-900 ${className}`}>
-      <span className="text-3xl font-semibold text-mint/70">{initials(name)}</span>
-    </div>
-  );
+  // Until an approved photo exists, show an original illustration rather than an empty placeholder.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/illustrations/campaign-default.svg" alt={`Illustration for ${name}'s campaign`} loading="lazy" className={`object-cover ${className}`} />;
 }
 
 export function StatusPill({ tone, children }: { tone: 'mint' | 'amber' | 'red' | 'grey' | 'sky'; children: ReactNode }) {

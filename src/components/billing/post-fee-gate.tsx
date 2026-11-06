@@ -8,13 +8,13 @@ import { formatINR } from '@/lib/format';
 import { Icon } from '@/components/ui/icons';
 import { Notice } from '@/components/ui/primitives';
 
-type Order = { postFeeId: string; orderId: string; keyId: string; amountPaise: number; sandbox: boolean; mock: boolean };
+type Order = { postFeeId: string; orderId: string; keyId: string; amountPaise: number; sandbox: boolean; mock: boolean; simulator: boolean };
 
 type CheckoutCtor = new (options: Record<string, unknown>) => { open(): void };
 const checkout = () => (window as unknown as { Razorpay?: CheckoutCtor }).Razorpay;
 
 /** Paywall: each campaign post costs Rs 100. Paying opens the dashboard and allows creating a campaign. */
-export function PostFeeGate({ feePaise, reason }: { feePaise: number; reason: 'dashboard' | 'create' }) {
+export function PostFeeGate({ feePaise, reason, paymentConnected }: { feePaise: number; reason: 'dashboard' | 'post'; paymentConnected: boolean }) {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [busy, setBusy] = useState(false);
@@ -89,12 +89,12 @@ export function PostFeeGate({ feePaise, reason }: { feePaise: number; reason: 'd
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-mint/15 text-mint animate-rise">
           <Icon name="wallet" className="h-8 w-8" />
         </span>
-        <p className="eyebrow mt-5">{reason === 'dashboard' ? 'Dashboard locked' : 'Post fee required'}</p>
+        <p className="eyebrow mt-5">{reason === 'dashboard' ? 'Dashboard locked' : 'Post fee'}</p>
         <h1 id="gate-h" className="mt-2 text-[26px] font-extrabold tracking-tight">
           {reason === 'dashboard' ? 'Pay to open your dashboard' : 'Pay to post your campaign'}
         </h1>
         <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-ui-muted">
-          Each campaign post costs a one-time fee of <span className="font-semibold text-ui-text">{formatINR(feePaise)}</span>. It keeps spam and duplicate requests off the platform.
+          Each campaign post costs a one-time fee of <span className="font-semibold text-ui-text">{formatINR(feePaise)}</span>. Starting and editing a campaign is free.
         </p>
         <p className="mt-5 text-4xl font-extrabold text-mint">{formatINR(feePaise)}</p>
         <p className="text-xs text-ui-subtle">per campaign post</p>
@@ -102,13 +102,13 @@ export function PostFeeGate({ feePaise, reason }: { feePaise: number; reason: 'd
 
       {error && <Notice tone="error">{error}</Notice>}
 
-      {order?.mock ? (
-        <div className="surface-flat space-y-4 border-pastel-yellow/25 p-5">
-          <p className="text-sm leading-relaxed text-ui-muted">
-            <span className="font-semibold text-ui-warning">Sandbox payment.</span> No money moves. This completes the same signed webhook the live gateway uses.
-          </p>
+      {!paymentConnected && !order?.simulator ? (
+        <Notice tone="info">Online payment is not connected yet, so posts cannot be paid for at the moment. Your campaign is saved and will be posted as soon as payment is available.</Notice>
+      ) : order?.mock && order.simulator ? (
+        <div className="surface-flat space-y-4 p-5">
+          <p className="text-sm leading-relaxed text-ui-muted">Test mode: this completes the same signed confirmation the live gateway sends. No money moves.</p>
           <button type="button" className="btn-primary w-full" disabled={busy} onClick={simulate}>
-            {busy ? 'Confirming…' : `Complete sandbox payment of ${formatINR(feePaise)}`}
+            {busy ? 'Confirming…' : `Confirm test payment of ${formatINR(feePaise)}`}
           </button>
         </div>
       ) : (

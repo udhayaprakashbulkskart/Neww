@@ -48,6 +48,7 @@ export async function startPostFee(userId: string, ip: string | null) {
       amountPaise: POST_FEE_PAISE,
       sandbox: gateway.isSandbox,
       mock: gateway.name === 'MOCK',
+      simulator: checkoutConfig().simulator,
     };
   } catch {
     await db.postFee.update({ where: { id: fee.id }, data: { status: 'FAILED' } });

@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/lib/db';
 import { resetDatabase, makeUser, makeCategory } from './helpers';
 import { createDraft } from '@/lib/services/campaigns';
-import { startPostFee, markPostFeePaid, postFeeStatus, POST_FEE_PAISE } from '@/lib/services/billing';
+import { startPostFee, markPostFeePaid, postFeeStatus, reserveCreditForCampaign, POST_FEE_PAISE } from '@/lib/services/billing';
 import { simulateOrderCapture } from '@/lib/services/payment-events';
 
 beforeAll(async () => {
@@ -17,13 +17,20 @@ beforeEach(async () => {
 });
 
 describe('post fee paywall', () => {
-  it('blocks campaign creation until a post fee is paid', async () => {
+  it('lets a beneficiary start a campaign for free, without paying', async () => {
     const ben = await makeUser({ userType: 'BENEFICIARY' });
-    await expect(createDraft(ben.id)).rejects.toMatchObject({ status: 402, code: 'PAYMENT_REQUIRED' });
+    const draft = await createDraft(ben.id);
+    expect(draft.id).toBeTruthy();
     expect((await postFeeStatus(ben.id)).hasDashboardAccess).toBe(false);
   });
 
-  it('grants the dashboard and one campaign credit only after the verified webhook', async () => {
+  it('refuses to post without a paid credit', async () => {
+    const ben = await makeUser({ userType: 'BENEFICIARY' });
+    const draft = await createDraft(ben.id);
+    await expect(db.$transaction((tx) => reserveCreditForCampaign(tx, ben.id, draft.id))).rejects.toMatchObject({ status: 402, code: 'PAYMENT_REQUIRED' });
+  });
+
+  it('grants the dashboard and one credit only after the verified webhook', async () => {
     const ben = await makeUser({ userType: 'BENEFICIARY' });
     const fee = await startPostFee(ben.id, null);
     expect(fee.amountPaise).toBe(POST_FEE_PAISE);
@@ -35,14 +42,16 @@ describe('post fee paywall', () => {
     expect(status.availableCredits).toBe(1);
   });
 
-  it('reserves one credit per campaign: a second draft needs a second payment', async () => {
+  it('spends one credit per post: a second post needs a second payment', async () => {
     const ben = await makeUser({ userType: 'BENEFICIARY' });
     const fee = await startPostFee(ben.id, null);
     await simulateOrderCapture({ orderId: fee.orderId!, amountPaise: POST_FEE_PAISE, ip: null });
 
     const first = await createDraft(ben.id);
+    await db.$transaction((tx) => reserveCreditForCampaign(tx, ben.id, first.id));
     expect((await postFeeStatus(ben.id)).availableCredits).toBe(0);
-    await expect(createDraft(ben.id)).rejects.toMatchObject({ status: 402 });
+    const second = await createDraft(ben.id);
+    await expect(db.$transaction((tx) => reserveCreditForCampaign(tx, ben.id, second.id))).rejects.toMatchObject({ status: 402 });
     const reserved = await db.postFee.findFirstOrThrow({ where: { userId: ben.id } });
     expect(reserved.campaignId).toBe(first.id);
   });

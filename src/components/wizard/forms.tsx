@@ -21,7 +21,6 @@ function useStepSave(campaignId: string, step: WizardStepKey) {
       return false;
     }
     router.push(next ?? nextStepHref(campaignId, step));
-    router.refresh();
     return true;
   }
   return { busy, error, setError, save };
@@ -237,7 +236,6 @@ export function BankForm({ campaignId, existing }: { campaignId: string; existin
     setBusy(false);
     if (!res.ok) return setError(res.message);
     router.push(nextStepHref(campaignId, 'bank'));
-    router.refresh();
   }
 
   return (

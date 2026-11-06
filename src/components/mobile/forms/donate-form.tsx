@@ -35,7 +35,7 @@ export function DonateForm({ campaignId, slug, title, remainingPaise, beneficiar
     if (problem) return setError(problem);
     setBusy(true);
     const idempotencyKey = `don_${crypto.randomUUID()}`;
-    const res = await api<{ donationId: string; orderId: string | null; keyId: string; amountPaise: number; mock: boolean; sandbox: boolean; campaignTitle: string }>('/api/donations', {
+    const res = await api<{ donationId: string; orderId: string | null; keyId: string; amountPaise: number; mock: boolean; sandbox: boolean; simulator: boolean; campaignTitle: string }>('/api/donations', {
       body: { campaignId, amountPaise: rupeesToPaise(chosenRupees), isAnonymous: anonymous, idempotencyKey },
     });
     if (!res.ok) {

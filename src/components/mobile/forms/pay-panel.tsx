@@ -16,6 +16,7 @@ type Checkout = {
   amountPaise: number;
   mock: boolean;
   sandbox: boolean;
+  simulator: boolean;
   campaignTitle: string;
 };
 
@@ -117,19 +118,16 @@ export function PayPanel({ donationId, campaignSlug }: { donationId: string; cam
 
       {error && <Notice tone="error">{error}</Notice>}
 
-      {details.mock ? (
-        <div className="surface-flat space-y-4 border-pastel-yellow/25 p-5">
-          <div className="flex items-start gap-3">
-            <Icon name="alert" className="mt-0.5 h-5 w-5 shrink-0 text-ui-warning" />
-            <p className="text-sm leading-relaxed text-ui-muted">
-              <span className="font-semibold text-ui-warning">Sandbox mode.</span> No real money moves. These buttons run the same signed webhook flow the live gateway uses.
-            </p>
-          </div>
+      {details.mock && !details.simulator ? (
+        <Notice tone="info">Online payment is not connected yet. No money has been taken. Please try again later.</Notice>
+      ) : details.mock ? (
+        <div className="surface-flat space-y-4 p-5">
+          <p className="text-sm leading-relaxed text-ui-muted">Test mode: this completes the same signed confirmation the live gateway sends. No money moves.</p>
           <button type="button" disabled={busy} onClick={() => sandbox('success')} className="btn-primary w-full">
-            {busy ? 'Processing…' : 'Simulate successful payment'}
+            {busy ? 'Processing…' : 'Confirm test payment'}
           </button>
           <button type="button" disabled={busy} onClick={() => sandbox('failed')} className="btn-ghost w-full">
-            Simulate failed payment
+            Test a failed payment
           </button>
         </div>
       ) : (

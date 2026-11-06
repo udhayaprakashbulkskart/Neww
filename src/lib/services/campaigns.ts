@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import type { Prisma, CampaignStatus, DocKind, Urgency } from '@prisma/client';
 import { db } from '../db';
 import { keyedHash } from '../crypto';
-import { errors } from '../http';
+import { ApiError, errors } from '../http';
 import { daysLeft, percent, publicName, slugify } from '../format';
 import {
   EDITABLE_STATUSES,
@@ -242,7 +242,7 @@ export async function createDraft(userId: string) {
 
   const campaign = await db.$transaction(async (tx) => {
     if (user.userType === 'DONOR') await tx.user.update({ where: { id: userId }, data: { userType: 'BOTH' } });
-    const created = await tx.campaign.create({
+    return tx.campaign.create({
       data: {
         slug: `draft-${crypto.randomBytes(5).toString('hex')}`,
         title: 'Untitled campaign',
@@ -256,8 +256,6 @@ export async function createDraft(userId: string) {
       },
       select: { id: true },
     });
-    await reserveCreditForCampaign(tx, userId, created.id);
-    return created;
   });
   return campaign;
 }
@@ -386,9 +384,16 @@ export async function submitCampaign(userId: string, campaignId: string) {
   }
   assertTransition(c.status, 'PENDING');
 
-  const updated = await db.campaign.updateMany({
-    where: { id: campaignId, status: c.status },
-    data: { status: 'PENDING', submittedAt: new Date(), reviewNote: null },
+  // Posting uses one paid credit. The credit and the status change commit together or not at all.
+  const updated = await db.$transaction(async (tx) => {
+    if (!(await tx.postFee.findFirst({ where: { userId, status: 'PAID', campaignId: null }, select: { id: true } }))) {
+      throw new ApiError(402, 'PAYMENT_REQUIRED', 'Pay the Rs 100 post fee to post this campaign.');
+    }
+    await reserveCreditForCampaign(tx, userId, campaignId);
+    return tx.campaign.updateMany({
+      where: { id: campaignId, status: c.status },
+      data: { status: 'PENDING', submittedAt: new Date(), reviewNote: null },
+    });
   });
   if (updated.count === 0) throw errors.conflict('This campaign was changed. Refresh and try again.');
 

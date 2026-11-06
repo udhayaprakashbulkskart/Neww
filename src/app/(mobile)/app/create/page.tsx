@@ -7,8 +7,6 @@ import { STATUS_LABEL } from '@/lib/state/campaign-machine';
 import { TopBar } from '@/components/mobile/shell';
 import { EmptyState, StatusPill } from '@/components/ui/primitives';
 import { StartCampaignButton } from '@/components/wizard/create-button';
-import { PostFeeGate } from '@/components/billing/post-fee-gate';
-import { postFeeStatus } from '@/lib/services/billing';
 import { Icon } from '@/components/ui/icons';
 
 export const metadata = { title: 'Create a campaign' };
@@ -27,8 +25,7 @@ const TONE: Record<string, 'mint' | 'amber' | 'red' | 'grey' | 'sky'> = {
 export default async function CreateHubPage() {
   const user = await requirePageUser('/app/create');
   const [mine, account] = await Promise.all([listMyCampaigns(user.id), db.user.findUnique({ where: { id: user.id }, select: { status: true } })]);
-  const fee = await postFeeStatus(user.id);
-  const canStart = account?.status === 'ACTIVE' && fee.availableCredits > 0;
+  const canStart = account?.status === 'ACTIVE';
 
   return (
     <main className="pb-36">
@@ -51,10 +48,8 @@ export default async function CreateHubPage() {
 
         {canStart ? (
           <StartCampaignButton />
-        ) : account?.status !== 'ACTIVE' ? (
-          <p className="text-sm text-ui-warning">Your account must be active before you can start a campaign.</p>
         ) : (
-          <PostFeeGate feePaise={fee.feePaise} reason="create" />
+          <p className="text-sm text-ui-warning">Your account must be active before you can start a campaign.</p>
         )}
 
         <section aria-labelledby="mine-h">

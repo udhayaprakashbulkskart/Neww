@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/icons';
 import { PostUpdate } from '@/components/mobile/forms/post-update';
 import { PostFeeGate } from '@/components/billing/post-fee-gate';
 import { postFeeStatus } from '@/lib/services/billing';
+import { checkoutConfig } from '@/lib/services/donations';
 
 export const metadata = { title: 'Beneficiary dashboard' };
 
@@ -28,12 +29,13 @@ const TONE: Record<string, 'mint' | 'amber' | 'red' | 'grey' | 'sky'> = {
 export default async function BeneficiaryPage() {
   const user = await requirePageUser('/app/beneficiary');
   const fee = await postFeeStatus(user.id);
+  const cfg = checkoutConfig();
   if (!fee.hasDashboardAccess) {
     return (
       <main className="pb-36">
         <TopBar back="/app/donor" title="My dashboard" />
         <div className="px-5">
-          <PostFeeGate feePaise={fee.feePaise} reason="dashboard" />
+          <PostFeeGate feePaise={fee.feePaise} reason="dashboard" paymentConnected={!cfg.mock || cfg.simulator} />
         </div>
       </main>
     );

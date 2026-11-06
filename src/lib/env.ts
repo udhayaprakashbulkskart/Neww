@@ -31,6 +31,8 @@ const schema = z.object({
   FRAUD_DONATIONS_PER_HOUR_PER_IP: z.coerce.number().int().positive().default(25),
   // Explicit opt-in for a production-hosted sandbox (mock payments, mock KYC, console messaging).
   ALLOW_SANDBOX: z.enum(['true', 'false']).default('false'),
+  // Lets testers complete mock payments through the simulator. Never enabled in production by default.
+  ALLOW_SIMULATOR: z.enum(['true', 'false']).default('false'),
 });
 
 export type Env = z.infer<typeof schema> & {
@@ -41,6 +43,8 @@ export type Env = z.infer<typeof schema> & {
   isProduction: boolean;
   /** True in development and tests, and in production only when ALLOW_SANDBOX=true. */
   sandboxAllowed: boolean;
+  /** True in development and tests; in production only with ALLOW_SIMULATOR=true. */
+  simulatorAllowed: boolean;
 };
 
 const DEV_FALLBACK = {
@@ -94,6 +98,7 @@ export function env(): Env {
     fileSigningSecret: Buffer.from(pick('FILE_SIGNING_SECRET', parsed.FILE_SIGNING_SECRET)),
     isProduction,
     sandboxAllowed,
+    simulatorAllowed: !isProduction || parsed.ALLOW_SIMULATOR === 'true',
   };
   return cached;
 }

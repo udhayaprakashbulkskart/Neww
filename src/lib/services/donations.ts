@@ -38,6 +38,7 @@ export function checkoutConfig() {
     keyId: gw.name === 'RAZORPAY' ? env().RAZORPAY_KEY_ID ?? '' : 'rzp_test_mockkey',
     sandbox: gw.isSandbox,
     mock: gw.name === 'MOCK',
+    simulator: env().simulatorAllowed,
   };
 }
 
@@ -183,6 +184,7 @@ function donationResponse(d: {
     keyId: cfg.keyId,
     sandbox: cfg.sandbox,
     mock: cfg.mock,
+    simulator: cfg.simulator,
     campaignTitle: d.campaign.title,
     campaignSlug: d.campaign.slug,
     paymentStatus: d.payment?.status ?? null,

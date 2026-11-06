@@ -5,6 +5,7 @@ import { Icon, type IconName } from '@/components/ui/icons';
 import { CampaignTile } from '@/components/mobile/campaign-card';
 import { SectionHeader } from '@/components/ui/primitives';
 import { CountUp } from '@/components/ui/count-up';
+import { categoryIcon } from '@/lib/category-meta';
 
 export const metadata = {
   title: 'Home',
@@ -103,7 +104,7 @@ export default async function HomePage() {
           {data.categories.map((c) => (
             <Link key={c.id} href={`/explore?category=${c.slug}`} className="surface lift flex flex-col gap-4 p-5 hover:border-mint/25">
               <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${c.tone === 'yellow' ? 'bg-pastel-yellow' : c.tone === 'pink' ? 'bg-pastel-pink' : c.tone === 'sky' ? 'bg-pastel-sky' : 'bg-pastel-mint'} text-ink-950`}>
-                <Icon name={c.slug === 'debt-relief' ? 'wallet' : c.slug === 'medical' ? 'heart' : c.slug === 'education' ? 'file' : c.slug === 'family' ? 'users' : c.slug === 'emergency' ? 'alert' : 'chart'} className="h-5 w-5" />
+                <Icon name={categoryIcon(c.slug)} className="h-5 w-5" />
               </span>
               <span className="font-semibold">{c.name}</span>
             </Link>

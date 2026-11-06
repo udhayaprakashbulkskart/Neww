@@ -3,19 +3,11 @@ import { requirePageUser } from '@/lib/auth/session';
 import { homeSections } from '@/lib/services/campaigns';
 import { unreadCount } from '@/lib/services/notifications';
 import { Avatar, EmptyState, SectionHeader } from '@/components/ui/primitives';
-import { Icon, Logo, type IconName } from '@/components/ui/icons';
+import { Icon, Logo } from '@/components/ui/icons';
+import { categoryIcon } from '@/lib/category-meta';
 import { CampaignCardLarge, CampaignRow, CampaignTile } from '@/components/mobile/campaign-card';
 
 export const metadata = { title: 'Home' };
-
-const CATEGORY_ICON: Record<string, IconName> = {
-  'debt-relief': 'wallet',
-  medical: 'heart',
-  education: 'file',
-  family: 'users',
-  emergency: 'alert',
-  business: 'chart',
-};
 
 const CATEGORY_TONE: Record<string, string> = {
   'debt-relief': 'bg-pastel-yellow',
@@ -68,11 +60,11 @@ export default async function HomePage() {
           </div>
         </form>
 
-        <nav aria-label="Categories" className="grid grid-cols-4 gap-3">
-          {sections.categories.slice(0, 4).map((c) => (
-            <Link key={c.slug} href={`/app/category/${c.slug}`} className="group flex flex-col items-center gap-2 text-center">
+        <nav aria-label="Categories" className="no-scrollbar -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+          {sections.categories.map((c) => (
+            <Link key={c.slug} href={`/app/category/${c.slug}`} className="group flex w-[76px] shrink-0 flex-col items-center gap-2 text-center">
               <span className={`${CATEGORY_TONE[c.slug] ?? 'bg-pastel-mint'} flex h-16 w-full items-center justify-center rounded-[22px] text-ink-950 shadow-card transition group-active:scale-95`}>
-                <Icon name={CATEGORY_ICON[c.slug] ?? 'grid'} className="h-7 w-7" strokeWidth={1.8} />
+                <Icon name={categoryIcon(c.slug)} className="h-7 w-7" strokeWidth={1.8} />
               </span>
               <span className="text-[12px] font-medium leading-tight text-ui-muted">{c.name}</span>
             </Link>

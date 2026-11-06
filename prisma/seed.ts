@@ -31,6 +31,11 @@ const CATEGORIES = [
   { slug: 'family', name: 'Family Support', icon: 'users', tone: 'mint', sortOrder: 4 },
   { slug: 'emergency', name: 'Emergency', icon: 'alert', tone: 'yellow', sortOrder: 5 },
   { slug: 'business', name: 'Business', icon: 'chart', tone: 'pink', sortOrder: 6 },
+  { slug: 'disaster-relief', name: 'Disaster Relief', icon: 'alert', tone: 'sky', sortOrder: 7 },
+  { slug: 'elderly-care', name: 'Elderly Care', icon: 'heart', tone: 'pink', sortOrder: 8 },
+  { slug: 'disability-support', name: 'Disability Support', icon: 'shield', tone: 'mint', sortOrder: 9 },
+  { slug: 'farmers-livelihood', name: 'Farmers and Livelihood', icon: 'chart', tone: 'yellow', sortOrder: 10 },
+  { slug: 'widows-single-parents', name: 'Widows and Single Parents', icon: 'users', tone: 'pink', sortOrder: 11 },
 ];
 
 const STAFF = [

@@ -86,6 +86,10 @@ const config: Config = {
           from: { transform: 'translateX(0)' },
           to: { transform: 'translateX(-50%)' },
         },
+        sway: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
         breathe: {
           '0%, 100%': { transform: 'scale(1)' },
           '50%': { transform: 'scale(1.04)' },
@@ -98,6 +102,7 @@ const config: Config = {
         float: 'float 6s ease-in-out infinite',
         grow: 'grow 1.1s cubic-bezier(0.22,1,0.36,1) both',
         marquee: 'marquee 28s linear infinite',
+        sway: 'sway 40s ease-in-out infinite alternate',
         breathe: 'breathe 4s ease-in-out infinite',
       },
     },

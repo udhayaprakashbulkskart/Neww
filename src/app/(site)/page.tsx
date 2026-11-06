@@ -6,6 +6,9 @@ import { CampaignTile } from '@/components/mobile/campaign-card';
 import { SectionHeader } from '@/components/ui/primitives';
 import { CountUp } from '@/components/ui/count-up';
 import { categoryIcon } from '@/lib/category-meta';
+import { BrandMarquee } from '@/components/site/brand-marquee';
+import { LiveDonations } from '@/components/site/live-donations';
+import { recentDonationFeed } from '@/lib/services/live-feed';
 
 export const metadata = {
   title: 'Home',
@@ -26,7 +29,7 @@ const TRUST: { icon: IconName; title: string; body: string }[] = [
 ];
 
 export default async function HomePage() {
-  const data = await homeSections();
+  const [data, feed] = await Promise.all([homeSections(), recentDonationFeed(12)]);
   const s = data.stats;
 
   return (
@@ -94,6 +97,9 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Charity and partner strip */}
+      <BrandMarquee campaigns={data.verified} />
+
       {/* Categories */}
       <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8 animate-rise" aria-labelledby="cats-h">
         <SectionHeader title="Find a cause that matters to you" />
@@ -111,6 +117,9 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* Live donations */}
+      <LiveDonations initial={feed} />
 
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-5 pb-20 lg:px-8" aria-labelledby="how-h">

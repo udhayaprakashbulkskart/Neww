@@ -126,6 +126,7 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-float,
   .animate-marquee,
+  .animate-sway,
   .animate-breathe {
     animation: none !important;
   }

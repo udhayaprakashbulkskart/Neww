@@ -10,7 +10,7 @@ import { Notice } from '@/components/ui/primitives';
 
 type Order = { postFeeId: string; orderId: string; keyId: string; amountPaise: number; sandbox: boolean; mock: boolean; simulator: boolean };
 
-type CheckoutCtor = new (options: Record<string, unknown>) => { open(): void };
+type CheckoutCtor = new (options: Record<string, unknown>) => { open(): void; on(event: string, cb: () => void): void };
 const checkout = () => (window as unknown as { Razorpay?: CheckoutCtor }).Razorpay;
 
 /** Paywall: each campaign post costs Rs 100. Paying opens the dashboard and allows creating a campaign. */
@@ -64,6 +64,10 @@ export function PostFeeGate({ feePaise, reason, paymentConnected }: { feePaise: 
       theme: { color: '#5CFFB1' },
       modal: { ondismiss: () => setBusy(false) },
       handler: () => waitForCredit(),
+    });
+    rzp.on('payment.failed', () => {
+      setBusy(false);
+      setError('The payment did not go through. Please try again.');
     });
     rzp.open();
   }

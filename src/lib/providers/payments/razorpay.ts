@@ -30,6 +30,7 @@ async function rzp<T>(path: string, body: unknown): Promise<T> {
   });
   if (!res.ok) {
     // Do not echo the provider body (it can contain request details); log the status only.
+    if (res.status === 401) console.error('[razorpay] authentication failed: check RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET');
     console.error(`[razorpay] ${path} failed with status ${res.status}`);
     throw new Error('Payment provider request failed.');
   }
@@ -43,6 +44,10 @@ export const razorpayGateway: PaymentGateway = {
   },
 
   async createOrder(input: CreateOrderInput): Promise<CreateOrderResult> {
+    // Razorpay rejects orders below 100 paise (Rs 1).
+    if (!Number.isInteger(input.amountPaise) || input.amountPaise < 100) {
+      throw new Error('Order amount must be at least 100 paise.');
+    }
     const order = await rzp<{ id: string }>('/orders', {
       amount: input.amountPaise,
       currency: 'INR',

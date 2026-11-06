@@ -32,10 +32,14 @@ async function main() {
   }
 
   const mobile = process.env.BOOTSTRAP_SUPERADMIN_MOBILE?.replace(/\D/g, '');
-  if (mobile) {
+  superAdmin: if (mobile) {
     if (!/^[6-9]\d{9}$/.test(mobile)) throw new Error('BOOTSTRAP_SUPERADMIN_MOBILE must be a 10-digit Indian mobile number.');
     const password = process.env.BOOTSTRAP_SUPERADMIN_PASSWORD;
-    if (!password || password.length < 12) throw new Error('BOOTSTRAP_SUPERADMIN_PASSWORD must be set (12+ characters).');
+    // Never fail the deploy over an optional account: skip it and keep the build going.
+    if (!password || password.length < 12) {
+      console.warn('Bootstrap: BOOTSTRAP_SUPERADMIN_PASSWORD is missing or shorter than 12 characters. Super admin not created.');
+      break superAdmin;
+    }
     const mobileHash = keyedHash(mobile, 'mobile');
     const passwordHash = await hashPassword(password);
     const user = await db.user.upsert({

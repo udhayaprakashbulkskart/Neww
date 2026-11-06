@@ -186,11 +186,12 @@ export function Icon({ name, ...props }: { name: IconName } & SVGProps<SVGSVGEle
   );
 }
 
-/** HelpTrust mark: mint heart-and-hand emblem. */
+/** HelpTrust mark: the heart-and-hand emblem from the brand logo. */
 export function Logo({ className = 'h-9 w-9' }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center justify-center rounded-2xl bg-mint-gradient text-ink-950 shadow-glow-soft ${className}`}>
-      <Icon name="logo" strokeWidth={2.1} className="h-[62%] w-[62%]" />
+    <span className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-ink-950 shadow-glow-soft ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/helptrust-mark.png" alt="" aria-hidden="true" className="h-full w-full object-cover" />
     </span>
   );
 }

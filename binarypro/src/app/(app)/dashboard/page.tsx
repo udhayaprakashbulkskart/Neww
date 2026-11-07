@@ -190,10 +190,18 @@ export default async function Dashboard() {
           <div className="h-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)]" style={{ width: `${Math.min(100, Number((d.personalPvInrMinor * 100n) / 5_000_000n))}%` }} />
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {['iPhone', 'Car', 'Bike'].map((prize) => (
-            <div key={prize} className="rounded-2xl border border-white/5 bg-black/40 p-4">
-              <div className="text-xs font-bold uppercase tracking-widest text-[#f7e09a]">{prize}</div>
+          {[
+            { name: 'iPhone', img: '/prizes/iphone.svg' },
+            { name: 'Car', img: '/prizes/car.svg' },
+            { name: 'Bike', img: '/prizes/bike.svg' },
+          ].map((prize) => (
+            <div key={prize.name} className="overflow-hidden rounded-2xl border border-white/5 bg-black/40">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={prize.img} alt={`${prize.name} prize illustration`} className="h-32 w-full object-cover" loading="lazy" />
+              <div className="p-4">
+              <div className="text-xs font-bold uppercase tracking-widest text-[#f7e09a]">{prize.name}</div>
               <div className="mt-1 text-xs text-[#8f8672]">Awarded only after verification and approval, under the published terms.</div>
+              </div>
             </div>
           ))}
         </div>

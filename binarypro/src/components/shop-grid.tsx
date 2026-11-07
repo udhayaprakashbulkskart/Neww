@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ShopItem } from './client';
 
-export interface ShopProduct { id: string; name: string; price: string; merchant: string }
+export interface ShopProduct { id: string; name: string; price: string; merchant: string; merchantId: string }
 
 const TONES = [
   'from-[#ff6a00] via-[#ff8c33] to-[#d4af37]',
@@ -13,15 +13,27 @@ const TONES = [
 ];
 
 /** Product grid with live search over name and merchant. */
-export function ShopGrid({ products }: { products: ShopProduct[] }) {
+export function ShopGrid({ products, initialMerchant = null }: { products: ShopProduct[]; initialMerchant?: string | null }) {
   const [q, setQ] = useState('');
+  const [merchant, setMerchant] = useState<string | null>(initialMerchant);
+  const merchants = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of products) m.set(p.merchantId, p.merchant);
+    return [...m.entries()];
+  }, [products]);
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return term ? products.filter((p) => `${p.name} ${p.merchant}`.toLowerCase().includes(term)) : products;
-  }, [products, q]);
+    return products.filter((p) => (!merchant || p.merchantId === merchant) && (!term || `${p.name} ${p.merchant}`.toLowerCase().includes(term)));
+  }, [products, q, merchant]);
 
   return (
     <div className="space-y-6">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        <button onClick={() => setMerchant(null)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${!merchant ? 'bg-[linear-gradient(135deg,#ff6a00,#d4af37)] text-black' : 'border border-white/10 text-[#b9b09a]'}`}>All merchants</button>
+        {merchants.map(([id, name]) => (
+          <button key={id} onClick={() => setMerchant(id)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${merchant === id ? 'bg-[linear-gradient(135deg,#ff6a00,#d4af37)] text-black' : 'border border-white/10 text-[#b9b09a]'}`}>{name}</button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <input
           type="search"

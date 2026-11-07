@@ -2,56 +2,81 @@ import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/server/auth';
 import { db } from '@/lib/server/db';
 import { formatMoney } from '@/lib/domain/money';
-import { PLANS, type Tier } from '@/lib/domain/plans';
+import { PLANS, TIERS, type Tier } from '@/lib/domain/plans';
 import { Notice, Money } from '@/components/ui';
 import { ShopGrid } from '@/components/shop-grid';
+import { CouponCards } from '@/components/coupon-cards';
+import type { Currency } from '@/lib/domain/money';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Shop() {
+export default async function Shop({ searchParams }: { searchParams: { m?: string } }) {
   const user = await currentUser();
   if (!user) redirect('/login');
-  const [products, orders, coupons] = await Promise.all([
-    db.product.findMany({ where: { active: true, merchant: { active: true } }, include: { merchant: true }, orderBy: { name: 'asc' }, take: 100 }),
+  const now = new Date();
+  const tier = (user.membership?.tier ?? 'BASIC') as Tier;
+  const cap = PLANS[tier].couponMaxPercent;
+  const initialMerchant = typeof searchParams.m === 'string' && /^[a-z0-9]{10,64}$/i.test(searchParams.m) ? searchParams.m : null;
+
+  const [products, orders, coupons, redemptions] = await Promise.all([
+    db.product.findMany({ where: { active: true, merchant: { active: true } }, include: { merchant: true }, orderBy: { name: 'asc' }, take: 200 }),
     db.order.findMany({ where: { buyerId: user.id }, orderBy: { createdAt: 'desc' }, take: 10, include: { merchant: true, items: { include: { product: true } } } }),
-    db.coupon.findMany({ where: { active: true, endsAt: { gt: new Date() } }, take: 5, orderBy: { percent: 'desc' } }),
+    db.coupon.findMany({
+      where: { active: true, startsAt: { lte: now }, endsAt: { gt: now } },
+      include: { merchant: true },
+      orderBy: { createdAt: 'desc' },
+      take: 60,
+    }),
+    db.couponRedemption.groupBy({ by: ['couponId'], where: { userId: user.id, reversed: false }, _count: { _all: true } }),
   ]);
-  const active = user.membership && user.membership.expiresAt > new Date();
-  const cap = PLANS[(user.membership?.tier ?? 'BASIC') as Tier].couponMaxPercent;
+  const used = new Map(redemptions.map((r) => [r.couponId, r._count._all]));
+  const active = user.membership && user.membership.expiresAt > now;
+
+  const couponCards = coupons
+    .filter((c) => c.merchantId === null || c.merchant?.active !== false)
+    .map((c) => ({
+      id: c.id,
+      code: c.code,
+      percent: c.percent,
+      merchantId: c.merchantId,
+      merchantName: c.merchant?.name ?? 'CrownTree',
+      maxCashback: formatMoney(c.maxCashbackMinor, c.currency as Currency),
+      minOrder: c.minOrderMinor > 0n ? formatMoney(c.minOrderMinor, c.currency as Currency) : 'None',
+      endsAt: c.endsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      usesLeft: Math.max(0, c.perUserLimit - (used.get(c.id) ?? 0)),
+      locked: c.percent > cap,
+      requiredTier: c.percent > cap ? (TIERS.find((t) => PLANS[t].couponMaxPercent >= c.percent) ?? 'Platinum') : null,
+      promo: c.funding === 'PROMO',
+    }));
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-12">
       <header>
         <h1 className="text-3xl font-black tracking-tight">Shop</h1>
-        <p className="mt-1 max-w-2xl text-sm text-[#8f8672]">Buy from partner merchants. Cashback is released after delivery and the 7-day return window, and it is capped by your membership tier (up to {cap}%).</p>
+        <p className="mt-1 max-w-2xl text-sm text-[#8f8672]">Cashback coupons from every partner merchant. Cashback is released after delivery and the 7-day return window, and is capped by your membership tier (up to {cap}%).</p>
       </header>
 
       {!active && <Notice tone="warn">An active membership is required to shop. Choose a plan on your dashboard.</Notice>}
 
-      {coupons.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[.18em] text-[#8f8672]">Cashback coupons</h2>
-          <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-            {coupons.map((c) => (
-              <div key={c.id} className="min-w-[250px] snap-start rounded-2xl border border-[#d4af37]/30 bg-[linear-gradient(120deg,#1f1706,#0b0b0b)] p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-widest text-[#f7e09a]">{c.percent}% cashback</span>
-                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-[#8f8672]">{c.perUserLimit}× per member</span>
-                </div>
-                <div className="mt-3 font-mono text-xl font-bold tracking-wider">{c.code}</div>
-                <div className="mt-1 text-xs text-[#8f8672]">Up to {formatMoney(c.maxCashbackMinor, c.currency)}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold">Online shopping coupons</h2>
+            <p className="text-sm text-[#8f8672]">Copy a code, then shop the merchant. {couponCards.length} active offer{couponCards.length === 1 ? '' : 's'}.</p>
+          </div>
+        </div>
+        <CouponCards coupons={couponCards} />
+      </section>
+
+      <section id="products" className="scroll-mt-24 space-y-4">
         <h2 className="text-lg font-bold">Products</h2>
         {products.length === 0 ? (
           <Notice>No products are listed yet.</Notice>
         ) : (
-          <ShopGrid products={products.map((p) => ({ id: p.id, name: p.name, price: formatMoney(p.priceMinor, p.currency), merchant: p.merchant.name }))} />
+          <ShopGrid
+            initialMerchant={initialMerchant}
+            products={products.map((p) => ({ id: p.id, name: p.name, price: formatMoney(p.priceMinor, p.currency), merchant: p.merchant.name, merchantId: p.merchantId }))}
+          />
         )}
       </section>
 

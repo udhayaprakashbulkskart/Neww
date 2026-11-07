@@ -61,6 +61,29 @@ async function main() {
     create: { id: 'seed-merchant', name: 'Demo Electronics Store' },
     update: {},
   });
+  // Additional merchants and coupons so the shop shows offers from several companies.
+  const extraMerchants = [
+    { id: 'seed-merchant-style', name: 'Urban Style Co.', code: 'STYLE30', percent: 30, product: 'Denim Jacket', price: 189900n },
+    { id: 'seed-merchant-home', name: 'Home Essentials', code: 'HOME10', percent: 10, product: 'Stainless Water Bottle', price: 59900n },
+  ];
+  for (const m of extraMerchants) {
+    const merchantRow = await db.merchant.upsert({ where: { id: m.id }, create: { id: m.id, name: m.name }, update: {} });
+    const exists = await db.product.findFirst({ where: { merchantId: merchantRow.id } });
+    if (!exists) await db.product.create({ data: { merchantId: merchantRow.id, name: m.product, priceMinor: m.price, currency: 'INR' } });
+    const coupon = await db.coupon.upsert({
+      where: { code: m.code },
+      create: {
+        code: m.code, funding: 'MERCHANT', merchantId: merchantRow.id, percent: m.percent,
+        maxCashbackMinor: 150_000n, minOrderMinor: 0n, currency: 'INR', budgetMinor: 5_000_000n,
+        perUserLimit: 1, startsAt: new Date(Date.now() - DAY), endsAt: new Date(Date.now() + 60 * DAY),
+      },
+      update: {},
+    });
+    if ((await balanceOf(db as never, accounts.merchantPool(merchantRow.id, 'INR').key)) === 0n) {
+      await fundCouponPool(coupon.id, 5_000_000n, 'seed');
+    }
+  }
+
   const products = [
     { name: 'Wireless Earbuds', price: 249900n },
     { name: 'Smart Watch', price: 899900n },

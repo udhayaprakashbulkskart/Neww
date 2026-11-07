@@ -53,7 +53,7 @@ export default async function Shop({ searchParams }: { searchParams: { m?: strin
     <div className="space-y-12">
       <header>
         <h1 className="text-3xl font-black tracking-tight">Shop</h1>
-        <p className="mt-1 max-w-2xl text-sm text-[#8f8672]">Cashback coupons from every partner merchant. Cashback is released after delivery and the 7-day return window, and is capped by your membership tier (up to {cap}%).</p>
+        <p className="mt-1 max-w-2xl text-sm text-[#8f8672]">Cashback coupons from every partner merchant. <a href="/offers" className="font-semibold text-[#f7e09a] underline-offset-4 hover:underline">Browse partner offers →</a> Cashback is released after delivery and the 7-day return window, and is capped by your membership tier (up to {cap}%).</p>
       </header>
 
       {!active && <Notice tone="warn">An active membership is required to shop. Choose a plan on your dashboard.</Notice>}

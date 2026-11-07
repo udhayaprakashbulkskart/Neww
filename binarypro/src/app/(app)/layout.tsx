@@ -12,6 +12,7 @@ const ITEMS: NavItem[] = [
   { href: '/shop', label: 'Shop', icon: 'bag' },
   { href: '/tree', label: 'Binary tree', icon: 'tree' },
   { href: '/earnings', label: 'Earnings', icon: 'chart' },
+  { href: '/offers', label: 'Partner offers', icon: 'store' },
   { href: '/wallet', label: 'Wallet', icon: 'wallet' },
 ];
 

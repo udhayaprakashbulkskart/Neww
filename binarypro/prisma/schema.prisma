@@ -164,6 +164,7 @@ model User {
   withdrawals Withdrawal[]
   adViews     AdView[]
   campaigns   AdCampaign[]
+  partnerClicks PartnerClick[]
   otpCodes    OtpCode[]
   pvLegs      PvLeg[]
 
@@ -452,4 +453,38 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([action, createdAt])
+}
+
+// Partner offers: outbound links only. No cashback is paid on partner purchases.
+model PartnerOffer {
+  id            String   @id @default(cuid())
+  partnerName   String
+  title         String
+  category      String
+  description   String?
+  discountLabel String
+  couponCode    String?
+  offerUrl      String
+  minTier       Tier
+  validUntil    DateTime
+  active        Boolean  @default(true)
+  approvedBy    String
+  approvalRef   String
+  createdAt     DateTime @default(now())
+  clicks        PartnerClick[]
+
+  @@index([active, validUntil])
+  @@index([category])
+}
+
+model PartnerClick {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  offerId   String
+  offer     PartnerOffer @relation(fields: [offerId], references: [id])
+  createdAt DateTime     @default(now())
+
+  @@index([offerId])
+  @@index([userId])
 }

@@ -12,6 +12,7 @@ import { MembershipPicker } from '@/components/client';
 import { CopyButton } from '@/components/copy-button';
 import { Money, Disclaimer } from '@/components/ui';
 import { Icon } from '@/components/shell/icons';
+import { PRIZES } from '@/lib/domain/prizes';
 import { TreeView } from '@/components/tree-view';
 
 export const dynamic = 'force-dynamic';
@@ -190,19 +191,22 @@ export default async function Dashboard() {
           <div className="h-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)]" style={{ width: `${Math.min(100, Number((d.personalPvInrMinor * 100n) / 5_000_000n))}%` }} />
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {[
-            { name: 'iPhone', img: '/prizes/iphone.svg' },
-            { name: 'Car', img: '/prizes/car.svg' },
-            { name: 'Bike', img: '/prizes/bike.svg' },
-          ].map((prize) => (
-            <div key={prize.name} className="overflow-hidden rounded-2xl border border-white/5 bg-black/40">
+          {PRIZES.map((prize) => (
+            <article key={prize.id} className="flex flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={prize.img} alt={`${prize.name} prize illustration`} className="h-32 w-full object-cover" loading="lazy" />
-              <div className="p-4">
-              <div className="text-xs font-bold uppercase tracking-widest text-[#f7e09a]">{prize.name}</div>
-              <div className="mt-1 text-xs text-[#8f8672]">Awarded only after verification and approval, under the published terms.</div>
+              <div className="flex h-40 items-center justify-center bg-white p-3">
+                <img src={prize.image} alt={`${prize.model} (${prize.name.toLowerCase()} prize)`} className="max-h-full max-w-full object-contain" loading="lazy" />
               </div>
-            </div>
+              <div className="flex flex-1 flex-col gap-2 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-widest text-[#f7e09a]">{prize.name}</div>
+                <div className="text-base font-bold">{prize.model}</div>
+                <p className="text-xs leading-relaxed text-[#b9b09a]">{prize.description}</p>
+                <ul className="mt-1 space-y-1 text-xs text-[#8f8672]">
+                  {prize.details.map((d) => <li key={d}>• {d}</li>)}
+                </ul>
+                <p className="mt-auto pt-2 text-[11px] text-[#6f6758]">{prize.supplierNote} Awarded only after verification and approval.</p>
+              </div>
+            </article>
           ))}
         </div>
         <p className="mt-4 text-[11px] text-[#6f6758]">Prize details, eligibility and timing are set in the programme terms, which must be approved before any prize is announced. Prizes are not guaranteed.</p>

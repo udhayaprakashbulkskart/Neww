@@ -56,11 +56,11 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 rounded-xl bg-black/50 p-1 text-sm">
+    <form onSubmit={submit} className="space-y-5">
+      <div className="grid grid-cols-2 gap-1 rounded-2xl bg-black/60 p-1 text-sm ring-1 ring-white/5">
         {(['signin', 'register'] as const).map((m) => (
           <button key={m} type="button" onClick={() => { setMode(m); setMsg(null); }}
-            className={`rounded-lg py-2 font-semibold ${mode === m ? 'bg-[linear-gradient(135deg,#ff6a00,#d4af37)] text-black' : 'text-[#a39a86]'}`}>
+            className={`rounded-xl py-2.5 font-semibold transition ${mode === m ? 'bg-[linear-gradient(135deg,#ff6a00,#d4af37)] text-black shadow-[0_6px_20px_rgba(255,106,0,.3)]' : 'text-[#a39a86] hover:text-white'}`}>
             {m === 'signin' ? 'Sign in' : 'Create account'}
           </button>
         ))}
@@ -80,8 +80,8 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
         <input id="password" type="password" className="input mt-2" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === 'register' ? 10 : 1} maxLength={128} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
         {mode === 'register' && <p className="mt-1 text-xs text-[#8f8672]">At least 10 characters, with a letter and a number.</p>}
       </div>
-      <button className="btn btn-brand w-full" disabled={busy}>{busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
-      {msg && <Message kind={msg.kind} text={msg.text} />}
+      <button className="btn btn-brand w-full py-3.5" disabled={busy}>{busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
+      {msg && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{msg.text}</div>}
     </form>
   );
 }

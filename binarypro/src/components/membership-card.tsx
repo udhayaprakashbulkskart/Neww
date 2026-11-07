@@ -11,7 +11,7 @@ export function MembershipCard({ tier, name, active, expires }: { tier: Tier; na
   const t = THEME[tier];
   return (
     <div
-      className="relative aspect-[1.7/1] w-full max-w-md overflow-hidden rounded-2xl p-5 text-white shadow-2xl"
+      className="relative aspect-[1.7/1] w-full max-w-md overflow-hidden rounded-2xl p-5 text-white shadow-2xl sm:p-6"
       style={{ background: t.bg, boxShadow: `0 20px 60px rgba(0,0,0,.7), inset 0 0 0 1px ${t.ring}55` }}
     >
       <div className="flex items-start justify-between">

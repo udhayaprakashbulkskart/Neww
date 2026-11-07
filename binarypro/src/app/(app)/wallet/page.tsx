@@ -33,28 +33,28 @@ export default async function Wallet() {
         <p className="mt-1 text-sm text-[#8f8672]">One wallet per currency. Every balance comes from the ledger.</p>
       </header>
 
-      <section className="flex snap-x gap-4 overflow-x-auto pb-2">
+      <section className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
         {CURRENCIES.map((c) => {
           const hasFunds = balances[c] > 0n;
           return (
-            <div key={c} className={`min-w-[220px] snap-start rounded-3xl p-5 ${hasFunds ? 'bg-[linear-gradient(150deg,#ff6a00,#d4af37_70%,#4a3508)] text-black' : 'border border-white/5 bg-white/[0.03]'}`}>
+            <div key={c} className={`min-w-[210px] snap-start rounded-3xl p-5 ${hasFunds ? 'bg-[linear-gradient(150deg,#ff6a00,#d4af37_70%,#4a3508)] text-black' : 'border border-white/5 bg-white/[0.03]'}`}>
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-widest opacity-80">
                 <span>{c}</span><span>{CURRENCY_META[c].symbol.trim()}</span>
               </div>
-              <div className="mt-8 text-2xl font-black"><Money minor={balances[c]} currency={c} /></div>
+              <div className="mt-8 whitespace-nowrap text-xl font-black sm:text-2xl"><Money minor={balances[c]} currency={c} /></div>
               <div className="mt-1 text-xs opacity-70">{CURRENCY_META[c].name}</div>
             </div>
           );
         })}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-3xl border border-white/5 bg-white/[0.03] p-6">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <section className="min-w-0 rounded-3xl border border-white/5 bg-white/[0.03] p-6">
           <h2 className="mb-1 text-lg font-bold">Convert currency</h2>
           <p className="mb-4 text-sm text-[#8f8672]">Converted at the published rate with a 1.5% spread.</p>
           <ConvertForm currencies={[...CURRENCIES]} balances={balanceStrings} />
         </section>
-        <section className="rounded-3xl border border-white/5 bg-white/[0.03] p-6">
+        <section className="min-w-0 rounded-3xl border border-white/5 bg-white/[0.03] p-6">
           <h2 className="mb-1 text-lg font-bold">Withdraw</h2>
           <p className="mb-4 text-sm text-[#8f8672]">{kycOk ? 'Paid to your bank account after finance review.' : 'Identity verification is required before withdrawing.'}</p>
           {kycOk ? (

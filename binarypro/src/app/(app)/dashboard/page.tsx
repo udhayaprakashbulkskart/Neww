@@ -68,18 +68,18 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid items-start gap-6 xl:grid-cols-[360px_1fr]">
-        <div className="space-y-4">
+      <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[360px_1fr]">
+        <div className="min-w-0 space-y-4">
           <MembershipCard tier={tier} name={user.name} active={d.activeMembership} expires={d.expiresAt} />
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-sm">
             <div className="flex justify-between"><span className="text-[#8f8672]">Member ID</span><span className="font-mono font-bold text-[#f7e09a]">{d.memberCode}</span></div>
             <div className="mt-3 flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg bg-black px-3 py-2 text-xs text-[#f7e09a]">{`/login?ref=${user.id}`}</code>
+              <code className="min-w-0 flex-1 truncate rounded-lg bg-black px-3 py-2 font-mono text-xs text-[#f7e09a]">{`/login?ref=${user.id}`}</code>
               <CopyButton text={`/login?ref=${user.id}`} />
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 items-start gap-4 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid min-w-0 grid-cols-2 items-start gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
           <Kpi label="My directs" value={d.directs} icon="home" />
           <Kpi label="Left team" value={d.leftTeamCount.toLocaleString('en-IN')} icon="tree" />
           <Kpi label="Right team" value={d.rightTeamCount.toLocaleString('en-IN')} icon="tree" />

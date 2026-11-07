@@ -255,12 +255,12 @@ export function ConvertForm({ currencies, balances }: { currencies: string[]; ba
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-      <select className="input" value={from} onChange={(e) => setFrom(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select>
-      <select className="input" value={to} onChange={(e) => setTo(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select>
-      <input className="input" placeholder={`Amount (${balances[from] ?? '0'} available)`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-      <button className="btn btn-brand" disabled={busy || from === to}>Convert</button>
-      {msg && <div className="sm:col-span-4"><Message kind={msg.kind} text={msg.text} /></div>}
+    <form onSubmit={submit} className="grid min-w-0 grid-cols-2 gap-3">
+      <div className="min-w-0"><label className="label">From</label><select className="input mt-1.5" value={from} onChange={(e) => setFrom(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
+      <div className="min-w-0"><label className="label">To</label><select className="input mt-1.5" value={to} onChange={(e) => setTo(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
+      <div className="col-span-2"><label className="label">Amount</label><input className="input mt-1.5" placeholder={`Available ${balances[from] ?? '0'}`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
+      <button className="btn btn-brand col-span-2 py-3" disabled={busy || from === to}>{busy ? 'Converting…' : 'Convert'}</button>
+      {msg && <div className="col-span-2"><Message kind={msg.kind} text={msg.text} /></div>}
     </form>
   );
 }
@@ -281,11 +281,11 @@ export function WithdrawForm({ currencies }: { currencies: string[] }) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-      <select className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select>
-      <input className="input" placeholder="Amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required />
-      <button className="btn btn-brand">Request withdrawal</button>
-      {msg && <div className="sm:col-span-3"><Message kind={msg.kind} text={msg.text} /></div>}
+    <form onSubmit={submit} className="grid min-w-0 grid-cols-2 gap-3">
+      <div className="min-w-0"><label className="label">Currency</label><select className="input mt-1.5" value={currency} onChange={(e) => setCurrency(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
+      <div className="min-w-0"><label className="label">Amount</label><input className="input mt-1.5" placeholder="0.00" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
+      <button className="btn btn-brand col-span-2 py-3">{busy ? 'Submitting…' : 'Request withdrawal'}</button>
+      {msg && <div className="col-span-2"><Message kind={msg.kind} text={msg.text} /></div>}
     </form>
   );
 }

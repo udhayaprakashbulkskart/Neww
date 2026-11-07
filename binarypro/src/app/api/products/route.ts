@@ -2,6 +2,8 @@ import { db } from '@/lib/server/db';
 import { handle, ok } from '@/lib/server/http';
 
 export const runtime = 'nodejs';
+// Reads live catalogue data: must never be prerendered at build time.
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   return handle(async () => {

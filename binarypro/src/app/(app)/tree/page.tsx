@@ -5,7 +5,7 @@ import { binaryDownline } from '@/lib/server/binary';
 import { buildTree, type TreeNode } from '@/lib/server/tree';
 import { PlacementForm } from '@/components/client';
 import { TreeView } from '@/components/tree-view';
-import { Notice } from '@/components/ui';
+import { Notice, Money } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,12 +34,64 @@ export default async function TreePage({ searchParams }: { searchParams: { root?
       .slice(0, 50);
   }
 
+  // Summary for the member in focus: team sizes and unmatched volume on each leg.
+  let summary: null | { name: string; tier: string | null; active: boolean; left: number; right: number; legLeft: bigint; legRight: bigint; isMe: boolean; focusId: string } = null;
+  if (root) {
+    const [leftSize, rightSize, legs] = await Promise.all([
+      root.left ? binaryDownline(db, root.left.id).then((s) => s.size) : Promise.resolve(0),
+      root.right ? binaryDownline(db, root.right.id).then((s) => s.size) : Promise.resolve(0),
+      db.pvLeg.findMany({ where: { userId: root.id } }),
+    ]);
+    summary = {
+      name: root.name,
+      tier: root.tier,
+      active: root.active,
+      left: leftSize,
+      right: rightSize,
+      legLeft: legs.find((l) => l.side === 'LEFT')?.pvMinor ?? 0n,
+      legRight: legs.find((l) => l.side === 'RIGHT')?.pvMinor ?? 0n,
+      isMe: root.id === user.id,
+      focusId: root.id,
+    };
+  }
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-black tracking-tight">Binary tree</h1>
-        <p className="mt-1 text-sm text-[#8f8672]">Tap any member to focus their team. Green means an active membership.</p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight">Binary tree</h1>
+          <p className="mt-1 text-sm text-[#8f8672]">Tap any member to focus their team. Two levels are shown at a time.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-xs text-[#8f8672]">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-400" />Active plan</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-zinc-600" />Inactive</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-md border border-[#d4af37]" />You</span>
+        </div>
       </header>
+
+      {summary && (
+        <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <div className="col-span-2 rounded-2xl border border-white/5 bg-white/[0.03] p-5 xl:col-span-1">
+            <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-[#8f8672]">{summary.isMe ? 'Your position' : 'Team in focus'}</div>
+            <div className="mt-2 text-xl font-extrabold">{summary.name}</div>
+            <div className="mt-1 flex items-center gap-2 text-xs text-[#8f8672]">
+              <span className={`h-1.5 w-1.5 rounded-full ${summary.active ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+              {summary.tier ?? 'No plan'}
+              {!summary.isMe && <a href="/tree" className="ml-auto font-semibold text-[#f7e09a]">Back to my tree</a>}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 sm:p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-[#8f8672]">Left team</div>
+            <div className="mt-2 text-2xl font-extrabold">{summary.left.toLocaleString('en-IN')}</div>
+            <div className="mt-1 text-xs text-[#8f8672]">unmatched <Money minor={summary.legLeft} /></div>
+          </div>
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4 sm:p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-[#8f8672]">Right team</div>
+            <div className="mt-2 text-2xl font-extrabold">{summary.right.toLocaleString('en-IN')}</div>
+            <div className="mt-1 text-xs text-[#8f8672]">unmatched <Money minor={summary.legRight} /></div>
+          </div>
+        </section>
+      )}
       {!user.parentId && (
         <section className="rounded-3xl border border-[#d4af37]/30 bg-[linear-gradient(160deg,#1d1606,#080808)] p-6">
           <h2 className="font-bold">Choose your position</h2>

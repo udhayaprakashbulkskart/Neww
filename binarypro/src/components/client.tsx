@@ -191,7 +191,7 @@ export function PlacementForm({ options }: { options: { id: string; name: string
 }
 
 // ---------- Shop ----------
-export function ShopItem({ productId, name, price, merchant }: { productId: string; name: string; price: string; merchant: string }) {
+export function ShopItem({ productId, name, price }: { productId: string; name: string; price: string }) {
   const router = useRouter();
   const { busy, setBusy, msg, setMsg } = useBusy();
   const [coupon, setCoupon] = useState('');
@@ -206,7 +206,7 @@ export function ShopItem({ productId, name, price, merchant }: { productId: stri
     setBusy(false);
     if (!r.ok) return setMsg({ kind: 'err', text: r.message });
     setPaymentRef(r.data.paymentRef);
-    setMsg({ kind: 'ok', text: 'Order created. Complete payment to confirm it.' });
+    setMsg({ kind: 'ok', text: 'Order placed. Complete payment to confirm it.' });
     router.refresh();
   }
 
@@ -217,20 +217,21 @@ export function ShopItem({ productId, name, price, merchant }: { productId: stri
     setBusy(false);
     if (!r.ok) return setMsg({ kind: 'err', text: r.message });
     setPaymentRef(null);
-    setMsg({ kind: 'ok', text: 'Payment captured. The order is held in escrow until delivery and the return window close.' });
+    setMsg({ kind: 'ok', text: 'Payment received. Your order is held until delivery and the return window close.' });
     router.refresh();
   }
 
   return (
-    <div className="panel flex flex-col gap-3 p-5">
-      <div className="text-xs uppercase tracking-widest text-[#a39a86]">{merchant}</div>
-      <div className="text-lg font-bold">{name}</div>
-      <div className="gold-text text-xl font-extrabold">{price}</div>
-      <input className="input" placeholder="Cashback coupon (optional)" value={coupon} onChange={(e) => setCoupon(e.target.value)} maxLength={40} />
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="min-w-0 text-base font-bold leading-snug">{name}</h3>
+        <span className="shrink-0 font-extrabold text-[#f7e09a]">{price}</span>
+      </div>
+      <input className="input text-sm" placeholder="Cashback coupon code (optional)" aria-label="Coupon code" value={coupon} onChange={(e) => setCoupon(e.target.value)} maxLength={40} />
       {!paymentRef ? (
-        <button className="btn btn-brand" onClick={buy} disabled={busy}>{busy ? 'Working…' : 'Buy now'}</button>
+        <button className="btn btn-brand w-full py-3" onClick={buy} disabled={busy}>{busy ? 'Placing order…' : 'Buy now'}</button>
       ) : (
-        <button className="btn btn-brand" onClick={pay} disabled={busy}>Pay (sandbox)</button>
+        <button className="btn btn-brand w-full py-3" onClick={pay} disabled={busy}>{busy ? 'Processing…' : 'Pay now (sandbox)'}</button>
       )}
       {msg && <Message kind={msg.kind} text={msg.text} />}
     </div>

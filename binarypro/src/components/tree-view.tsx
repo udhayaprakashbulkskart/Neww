@@ -14,12 +14,18 @@ export function TreeView({ root, viewerId }: { root: TreeNode; viewerId: string 
         <button className="btn btn-ghost px-3 py-1.5 text-xs" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
         <button className="btn btn-ghost px-3 py-1.5 text-xs" onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))} aria-label="Zoom in">+</button>
       </div>
-      <div className="overflow-auto rounded-2xl bg-[radial-gradient(circle_at_50%_0%,rgba(255,106,0,.10),transparent_60%)] p-6 pt-12" style={{ maxHeight: '70vh' }}>
+      <div className="overflow-auto rounded-2xl bg-[radial-gradient(circle_at_50%_0%,rgba(255,106,0,.10),transparent_60%)] p-6 pt-14" style={{ maxHeight: '70vh' }}>
         <div className="mx-auto w-max origin-top transition-transform" style={{ transform: `scale(${zoom})` }}>
           <Branch node={root} viewerId={viewerId} />
         </div>
       </div>
     </div>
+  );
+}
+
+function SideLabel({ side }: { side: 'LEFT' | 'RIGHT' }) {
+  return (
+    <span className={`mb-2 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-widest ${side === 'LEFT' ? 'bg-[#ff6a00]/15 text-[#ff8c33]' : 'bg-[#d4af37]/15 text-[#f7e09a]'}`}>{side}</span>
   );
 }
 
@@ -49,8 +55,8 @@ function Branch({ node, viewerId }: { node: TreeNode | null; viewerId: string })
         <div className="relative mt-8 flex gap-8 pt-8">
           <span className="absolute left-1/2 top-0 h-8 w-px -translate-x-1/2 bg-gradient-to-b from-[#d4af37] to-transparent" />
           <span className="absolute left-[25%] right-[25%] top-8 h-px bg-[#2a2116]" />
-          <div className="relative flex flex-col items-center"><span className="absolute -top-8 left-1/2 h-8 w-px bg-[#2a2116]" /><Branch node={node.left} viewerId={viewerId} /></div>
-          <div className="relative flex flex-col items-center"><span className="absolute -top-8 left-1/2 h-8 w-px bg-[#2a2116]" /><Branch node={node.right} viewerId={viewerId} /></div>
+          <div className="relative flex flex-col items-center"><span className="absolute -top-8 left-1/2 h-8 w-px bg-[#2a2116]" /><SideLabel side="LEFT" /><Branch node={node.left} viewerId={viewerId} /></div>
+          <div className="relative flex flex-col items-center"><span className="absolute -top-8 left-1/2 h-8 w-px bg-[#2a2116]" /><SideLabel side="RIGHT" /><Branch node={node.right} viewerId={viewerId} /></div>
         </div>
       )}
       {!node.left && !node.right && <div className="h-0" />}

@@ -5,6 +5,9 @@ import { PublicHeader } from '@/components/public-header';
 import { NetworkArt } from '@/components/brand-art';
 import { Icon } from '@/components/shell/icons';
 import { Reveal } from '@/components/reveal';
+import { CountUp } from '@/components/landing/count-up';
+import { Ticker } from '@/components/landing/ticker';
+import { TreeArt } from '@/components/landing/tree-art';
 
 const STEPS = [
   { n: '01', t: 'Join and choose a plan', b: 'Create your account and pick the membership tier that fits you. Benefits are shown up front.' },
@@ -17,7 +20,11 @@ export default function Home() {
     <>
       <PublicHeader />
       <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(ellipse_at_70%_0%,rgba(255,106,0,.22),transparent_55%),radial-gradient(ellipse_at_10%_30%,rgba(212,175,55,.12),transparent_50%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[760px] overflow-hidden" aria-hidden="true">
+          <div className="aurora-a absolute -left-24 top-10 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle,rgba(255,106,0,.35),transparent_65%)] blur-3xl" />
+          <div className="aurora-b absolute right-[-120px] top-[-40px] h-[480px] w-[480px] rounded-full bg-[radial-gradient(circle,rgba(212,175,55,.28),transparent_65%)] blur-3xl" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,transparent_30%,#000_85%)]" />
+        </div>
 
         <section className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_1fr] lg:pt-24">
           <div>
@@ -35,9 +42,9 @@ export default function Home() {
               <Link href="/compliance" className="btn btn-ghost px-7 py-3.5 text-base">How it stays compliant</Link>
             </div>
             <dl className="mt-12 grid max-w-md grid-cols-3 gap-4 border-t border-white/10 pt-8">
-              {[['4', 'membership tiers'], ['8', 'currencies'], ['2', 'payment and ledger safeguards']].map(([v, l]) => (
+              {[[4, '', 'membership tiers'], [8, '', 'currencies'], [7, '-day', 'return window before commission']].map(([v, suf, l]) => (
                 <div key={l}>
-                  <dt className="text-2xl font-black text-[#f7e09a]">{v}</dt>
+                  <dt className="text-2xl font-black text-[#f7e09a]"><CountUp to={Number(v)} suffix={String(suf)} /></dt>
                   <dd className="text-xs text-[#8f8672]">{l}</dd>
                 </div>
               ))}
@@ -69,7 +76,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="relative mx-auto max-w-6xl px-6 py-20">
+        <section id="plans" className="relative mx-auto max-w-6xl scroll-mt-24 px-6 py-20">
           <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
             <div className="max-w-xl">
               <p className="text-xs font-semibold uppercase tracking-[.3em] text-[#f7e09a]">Membership</p>
@@ -97,6 +104,41 @@ export default function Home() {
               );
             })}
           </div>
+        </section>
+
+        <section id="earn" className="relative mx-auto max-w-6xl scroll-mt-24 px-6 py-20">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[.3em] text-[#f7e09a]">Earn with ads</p>
+              <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Watch. Complete. Get paid.</h2>
+              <p className="mt-4 max-w-md text-[#8f8672]">Advertisers fund every reward. A payment is added only after you watch at least 95% of the video, once per campaign each day, within your plan’s limit.</p>
+              <ul className="mt-6 space-y-3 text-sm text-[#cfc6b0]">
+                <li className="flex gap-3"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rotate-45 bg-[#ff6a00]" />Daily limits from 5 to 20 videos, by plan</li>
+                <li className="flex gap-3"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rotate-45 bg-[#ff6a00]" />Rewards paid from advertiser budgets only</li>
+                <li className="flex gap-3"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rotate-45 bg-[#ff6a00]" />Every credit shows in your wallet history</li>
+              </ul>
+            </div>
+            <Reveal delay={120}>
+              <div className="relative mx-auto aspect-video w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_30%_20%,#ff8c33,transparent_55%),linear-gradient(135deg,#1a1408,#000)] shadow-[0_30px_80px_rgba(0,0,0,.7)]">
+                <div className="absolute inset-x-6 bottom-6">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full w-[70%] rounded-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)]" /></div>
+                  <div className="mt-2 flex justify-between text-[11px] text-[#cfc6b0]"><span>0:21</span><span>Reward unlocks at 95%</span></div>
+                </div>
+                <div className="absolute left-1/2 top-1/2 grid h-16 w-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/90 text-black shadow-[0_0_50px_rgba(255,106,0,.5)]">
+                  <svg viewBox="0 0 24 24" className="ml-0.5 h-7 w-7" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section id="tree" className="relative mx-auto max-w-6xl scroll-mt-24 px-6 py-20">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[.3em] text-[#f7e09a]">Binary team</p>
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Place members left or right. Grow together.</h2>
+            <p className="mt-4 text-[#8f8672]">Each new member takes an open position in your team. Matched volume earns binary rewards, within each plan’s daily limit and only when funded.</p>
+          </div>
+          <TreeArt />
         </section>
 
         <section className="relative mx-auto max-w-6xl px-6 py-20">

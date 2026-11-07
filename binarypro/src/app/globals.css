@@ -80,3 +80,20 @@ a { color: var(--gold); }
   .anim-fade-up { opacity: 1; transform: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
 }
+
+/* ---- Landing: ticker, aurora, drawn tree ---- */
+@keyframes bp-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes bp-aurora-a { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(60px,-40px,0) scale(1.12); } }
+@keyframes bp-aurora-b { 0%, 100% { transform: translate3d(0,0,0) scale(1.05); } 50% { transform: translate3d(-70px,50px,0) scale(.95); } }
+@keyframes bp-draw { to { stroke-dashoffset: 0; } }
+@keyframes bp-pulse { 0%, 100% { opacity: .35; r: 6; } 50% { opacity: 1; r: 9; } }
+.anim-marquee { animation: bp-marquee 32s linear infinite; }
+.aurora-a { animation: bp-aurora-a 16s ease-in-out infinite; }
+.aurora-b { animation: bp-aurora-b 20s ease-in-out infinite; }
+.draw-line { stroke-dasharray: 400; stroke-dashoffset: 400; }
+.in .draw-line, .draw-line.in { animation: bp-draw 1.4s cubic-bezier(.4,0,.2,1) forwards; }
+.pulse-node { animation: bp-pulse 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .anim-marquee, .aurora-a, .aurora-b, .pulse-node { animation: none !important; }
+  .draw-line { stroke-dashoffset: 0; animation: none !important; }
+}

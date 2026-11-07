@@ -1,8 +1,8 @@
-# BinaryPro
+# CrownTree
 
-**Commerce. Community. Rewards.**
+**Lead · Grow · Prosper**
 
-BinaryPro is a retail-led membership platform: members buy from partner merchants, earn cashback from merchant-funded
+CrownTree is a retail-led membership platform: members buy from partner merchants, earn cashback from merchant-funded
 coupons, earn commission on *verified, delivered* retail sales, build a left/right binary team, and earn rewards for
 watching advertiser-funded videos. Every rupee is held in a balanced double-entry ledger.
 

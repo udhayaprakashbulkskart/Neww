@@ -1,4 +1,4 @@
-// BinaryPro - database schema.
+// CrownTree - database schema.
 // Money is stored as BigInt minor units (paise, cents, fils ...). All currencies use 2 decimal places.
 // Every balance movement is a balanced LedgerTransaction (double-entry); wallets are derived from entries.
 

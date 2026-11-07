@@ -15,7 +15,7 @@ export function MembershipCard({ tier, name, active, expires }: { tier: Tier; na
       style={{ background: t.bg, boxShadow: `0 20px 60px rgba(0,0,0,.7), inset 0 0 0 1px ${t.ring}55` }}
     >
       <div className="flex items-start justify-between">
-        <div className="text-sm font-extrabold tracking-widest text-black/80 mix-blend-normal">BINARYPRO</div>
+        <div className="text-sm font-extrabold tracking-widest text-black/80 mix-blend-normal">CROWNTREE</div>
         <div className="rounded-full border border-black/40 bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest">
           {active ? t.label : 'Inactive'}
         </div>

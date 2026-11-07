@@ -2,8 +2,8 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'BinaryPro - Commerce. Community. Rewards.',
-  description: 'BinaryPro: retail-led membership with binary team rewards, cashback and advertising rewards.',
+  title: 'CrownTree - Lead · Grow · Prosper',
+  description: 'CrownTree: retail-led membership with binary team rewards, cashback and advertising rewards.',
 };
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#000000' };
 
@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <a href="/compliance">Compliance</a>
             <a href="/compliance#privacy">Privacy</a>
             <a href="/compliance#terms">Terms</a>
-            <span>© BinaryPro</span>
+            <span>© CrownTree</span>
           </div>
         </footer>
       </body>

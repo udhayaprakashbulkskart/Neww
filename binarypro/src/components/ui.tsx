@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import { formatMoney, type Currency } from '@/lib/domain/money';
 
-export function Logo() {
+/** CrowTree logo: crown mark plus wordmark. The mark is a square crop of the brand artwork. */
+export function Logo({ showTagline = true }: { showTagline?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid h-9 w-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#ff6a00,#d4af37)] font-black text-black">B</div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/crowntree-mark-160.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
       <div className="leading-tight">
-        <div className="gold-text text-lg font-extrabold tracking-tight">BinaryPro</div>
-        <div className="text-[10px] uppercase tracking-[.22em] text-[#a39a86]">Commerce. Community. Rewards.</div>
+        <div className="text-lg font-black tracking-[.06em] text-[#e8e8e8]">CROWN<span className="gold-text">TREE</span></div>
+        {showTagline && <div className="text-[10px] uppercase tracking-[.22em] text-[#a39a86]">Global Business Network</div>}
       </div>
     </div>
   );
@@ -51,7 +53,7 @@ export function Notice({ children, tone = 'info' }: { children: ReactNode; tone?
 export function Disclaimer() {
   return (
     <p className="text-xs leading-relaxed text-[#8a8170]">
-      BinaryPro does not guarantee income. Earnings depend on verified retail sales, your own activity and the
+      CrownTree does not guarantee income. Earnings depend on verified retail sales, your own activity and the
       performance of the platform. Commissions are never paid for joining, recruiting or membership fees. Advertising
       rewards are paid only from advertiser budgets. See the{' '}
       <a href="/compliance">compliance statement</a> for full terms.

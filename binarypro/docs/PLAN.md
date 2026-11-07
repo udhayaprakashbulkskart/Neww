@@ -1,4 +1,4 @@
-# BinaryPro build plan and status
+# CrownTree build plan and status
 
 ## Audit (current state)
 - Working: ledger (double-entry, append-only, row-locked), binary placement and payouts,

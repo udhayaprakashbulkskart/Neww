@@ -17,7 +17,7 @@ export type EarningType = keyof typeof EARNING_TYPES;
 
 /** Member code shown on the dashboard. Derived from the account id; the unique Member ID field is pending. */
 export function memberCode(id: string): string {
-  return `BP${id.slice(-6).toUpperCase()}`;
+  return `CT${id.slice(-6).toUpperCase()}`;
 }
 
 export async function earningsByType(userId: string) {

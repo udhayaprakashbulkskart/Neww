@@ -21,13 +21,13 @@ export default function Home() {
         <section className="relative mx-auto grid max-w-6xl items-center gap-14 px-6 pb-20 pt-16 lg:grid-cols-[1.05fr_1fr] lg:pt-24">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-1.5 text-xs font-semibold tracking-wide text-[#f7e09a]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ff6a00]" /> Commerce. Community. Rewards.
+              <span className="h-1.5 w-1.5 rounded-full bg-[#ff6a00]" /> Lead · Grow · Prosper
             </span>
             <h1 className="mt-6 text-5xl font-black leading-[1.02] tracking-tight sm:text-6xl">
               Shop. Watch. <span className="gold-text">Grow your team.</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#a39a86]">
-              BinaryPro pays for real activity: cashback from partner merchants, commission on verified retail sales and rewards from advertiser-funded videos, in one multi-currency wallet.
+              CrownTree pays for real activity: cashback from partner merchants, commission on verified retail sales and rewards from advertiser-funded videos, in one multi-currency wallet.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
               <Link href="/login?mode=register" className="btn btn-brand px-7 py-3.5 text-base">Create free account</Link>
@@ -114,7 +114,7 @@ export default function Home() {
 
         <section className="relative mx-auto max-w-6xl px-6 pb-20">
           <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-7 text-xs leading-relaxed text-[#8f8672]">
-            <strong className="text-[#cfc6b0]">Important.</strong> BinaryPro does not guarantee income. Earnings depend on verified retail sales, your own activity and platform performance. Commissions are never paid for joining, recruiting or membership fees. Advertising rewards are paid only from advertiser budgets. Read the <Link href="/compliance" className="text-[#f7e09a]">compliance statement</Link>.
+            <strong className="text-[#cfc6b0]">Important.</strong> CrownTree does not guarantee income. Earnings depend on verified retail sales, your own activity and platform performance. Commissions are never paid for joining, recruiting or membership fees. Advertising rewards are paid only from advertiser budgets. Read the <Link href="/compliance" className="text-[#f7e09a]">compliance statement</Link>.
           </div>
         </section>
       </div>

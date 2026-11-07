@@ -5,7 +5,7 @@ export default function Compliance() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <h1 className="text-3xl font-black">Compliance, terms and privacy</h1>
-      <Section title="How BinaryPro earns and pays">
+      <Section title="How CrownTree earns and pays">
         <ul className="list-disc space-y-2 pl-5 text-sm leading-relaxed text-[#cfc6b0]">
           <li>Commissions are paid only on verified, delivered retail sales that have passed their return window.</li>
           <li>There are no commissions for joining, for recruiting alone, or for membership fees.</li>
@@ -26,7 +26,7 @@ export default function Compliance() {
         <p className="text-sm leading-relaxed text-[#cfc6b0]">
           Before launch, obtain written advice on India&apos;s Direct Selling Guidelines (2016), the Prize Chits and
           Money Circulation Schemes (Banning) Act, 1978, GST on supplies and commissions, the Consumer Protection (E-Commerce)
-          Rules, 2020, DPDP Act 2023 for personal data, and the equivalent rules in every country where BinaryPro operates.
+          Rules, 2020, DPDP Act 2023 for personal data, and the equivalent rules in every country where CrownTree operates.
           Plan parameters in <code>src/lib/domain/plans.ts</code> are defaults and must be approved by the business owner
           and counsel.
         </p>

@@ -13,7 +13,8 @@ export default async function LoginPage({ searchParams }: { searchParams: { ref?
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <aside className="relative isolate hidden overflow-hidden border-r border-white/5 bg-[radial-gradient(circle_at_20%_10%,rgba(255,106,0,.28),transparent_45%),radial-gradient(circle_at_80%_90%,rgba(212,175,55,.22),transparent_50%),#000] p-12 lg:flex lg:flex-col lg:justify-between">
-        <Logo />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/crowntree-logo-800.png" alt="CrownTree" width={260} height={174} className="relative z-10 h-auto w-64" />
         <div className="relative z-10 mb-8 max-w-lg">
           <p className="text-xs font-semibold uppercase tracking-[.3em] text-[#f7e09a]">Global MLM commerce network</p>
           <h1 className="mt-4 text-5xl font-black leading-[1.05] tracking-tight">Build your <span className="gold-text">global team.</span></h1>

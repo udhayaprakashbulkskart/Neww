@@ -292,12 +292,13 @@ export function WithdrawForm({ currencies }: { currencies: string[] }) {
 }
 
 // ---------- Ads ----------
-export function AdWatch({ campaignId, durationSec, title, videoUrl }: { campaignId: string; durationSec: number; title: string; videoUrl: string }) {
+export function AdWatch({ campaignId, durationSec, title }: { campaignId: string; durationSec: number; title: string; videoUrl?: string }) {
   const router = useRouter();
   const { busy, setBusy, msg, setMsg } = useBusy();
   const [viewId, setViewId] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const required = Math.ceil(durationSec * 0.95);
 
   useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
 
@@ -308,11 +309,11 @@ export function AdWatch({ campaignId, durationSec, title, videoUrl }: { campaign
     if (!r.ok) return setMsg({ kind: 'err', text: r.message });
     setViewId(r.data.viewId);
     setElapsed(0);
-    // Watch timer runs in the browser; the server re-checks elapsed time on completion.
-    timer.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+    // The timer runs in the browser for display; the server checks real elapsed time when you claim.
+    timer.current = setInterval(() => setElapsed((s) => Math.min(s + 1, durationSec)), 1000);
   }
 
-  async function complete() {
+  async function claim() {
     if (!viewId) return;
     setBusy(true);
     const r = await call<{ rewardMinor: string; currency: string }>(`/api/ads/views/${viewId}/complete`, 'POST');
@@ -320,27 +321,41 @@ export function AdWatch({ campaignId, durationSec, title, videoUrl }: { campaign
     if (timer.current) clearInterval(timer.current);
     setViewId(null);
     if (!r.ok) return setMsg({ kind: 'err', text: r.message });
-    setMsg({ kind: 'ok', text: `Reward credited to your wallet.` });
+    setMsg({ kind: 'ok', text: 'Reward added to your wallet.' });
     router.refresh();
   }
 
-  const pct = Math.min(100, Math.round((elapsed / durationSec) * 100));
-  const ready = elapsed >= Math.ceil(durationSec * 0.95);
+  const ready = viewId !== null && elapsed >= required;
+  const remaining = Math.max(0, durationSec - elapsed);
+  const R = 26;
+  const C = 2 * Math.PI * R;
+  const progress = viewId ? Math.min(1, elapsed / durationSec) : 0;
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {viewId ? (
         <>
-          <video key={videoUrl} src={videoUrl} className="aspect-video w-full rounded-xl bg-black" muted playsInline controls={false} />
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[#1c160d]">
-            <div className="h-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)] transition-all" style={{ width: `${pct}%` }} />
+          <div className="flex items-center gap-4 rounded-2xl border border-white/5 bg-black/50 p-4">
+            <div className="relative grid h-16 w-16 shrink-0 place-items-center">
+              <svg viewBox="0 0 64 64" className="absolute inset-0 -rotate-90" aria-hidden="true">
+                <circle cx="32" cy="32" r={R} stroke="#1c160d" strokeWidth="6" fill="none" />
+                <circle cx="32" cy="32" r={R} stroke="url(#ad-grad)" strokeWidth="6" fill="none" strokeLinecap="round"
+                  strokeDasharray={C} strokeDashoffset={C * (1 - progress)} className="transition-[stroke-dashoffset] duration-1000" />
+                <defs><linearGradient id="ad-grad" x1="0" x2="1"><stop offset="0" stopColor="#ff6a00" /><stop offset="1" stopColor="#d4af37" /></linearGradient></defs>
+              </svg>
+              <span className="text-sm font-black tabular-nums">{remaining}s</span>
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">{title}</div>
+              <div className="text-xs text-[#8f8672]">{ready ? 'Watched in full. You can claim your reward.' : `Keep watching. Claim unlocks at ${required}s.`}</div>
+            </div>
           </div>
-          <div className="text-xs text-[#a39a86]">{title}: {elapsed}s / {durationSec}s</div>
-          <button className="btn btn-brand w-full" disabled={!ready || busy} onClick={complete}>
-            {ready ? 'Claim reward' : 'Keep watching…'}
+          <button className="btn btn-brand w-full py-3" disabled={!ready || busy} onClick={claim}>
+            {busy ? 'Claiming…' : ready ? 'Claim reward' : 'Watching…'}
           </button>
         </>
       ) : (
-        <button className="btn btn-brand w-full" disabled={busy} onClick={start}>Watch {title}</button>
+        <button className="btn btn-brand w-full py-3" disabled={busy} onClick={start}>{busy ? 'Starting…' : 'Start watching'}</button>
       )}
       {msg && <Message kind={msg.kind} text={msg.text} />}
     </div>

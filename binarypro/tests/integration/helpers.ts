@@ -25,7 +25,7 @@ export async function makeUser(opts: {
   side?: 'LEFT' | 'RIGHT' | null;
   tier?: 'BASIC' | 'SILVER' | 'GOLD' | 'PLATINUM';
   kyc?: 'VERIFIED' | 'NOT_SUBMITTED';
-  role?: 'MEMBER' | 'ADMIN' | 'FINANCE' | 'MERCHANT';
+  role?: 'MEMBER' | 'ADMIN' | 'FINANCE' | 'MERCHANT' | 'ADVERTISER';
   merchantId?: string | null;
 }) {
   phoneSeq += 1;

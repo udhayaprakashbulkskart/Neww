@@ -19,9 +19,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await currentUser();
   if (!user) redirect('/login');
   const role = user.role as StaffRole;
+  const isAdvertiser = role === 'ADVERTISER';
+  // Advertisers get their console first, so it is in the phone bar too.
+  const items = isAdvertiser ? [{ href: '/advertiser', label: 'Advertiser console', icon: 'store' }, ...ITEMS] : ITEMS;
   const isStaff = can(role, 'withdrawals:decide') || can(role, 'orders:transition') || can(role, 'ads:review') || can(role, 'merchants:manage');
   return (
-    <AppShell items={ITEMS} userName={user.name} rank={RANK_LABELS[user.rank as Rank]} isStaff={isStaff}>
+    <AppShell items={items} userName={user.name} rank={isAdvertiser ? 'Advertiser' : RANK_LABELS[user.rank as Rank]} isStaff={isStaff}>
       {children}
     </AppShell>
   );

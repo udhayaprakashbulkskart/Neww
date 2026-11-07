@@ -45,6 +45,7 @@ async function main() {
 
   await mk('+919000000001', 'Platform Admin', { role: 'ADMIN', kyc: 'VERIFIED' });
   await mk('+919000000002', 'Finance Lead', { role: 'FINANCE', kyc: 'VERIFIED' });
+  const advertiser = await mk('+919300000001', 'Demo Advertiser', { role: 'ADVERTISER', kyc: 'VERIFIED' });
 
   const founder = await mk('+919100000001', 'Founder', { kyc: 'VERIFIED' });
   await withMembership(founder.id, 'PLATINUM');
@@ -83,6 +84,17 @@ async function main() {
   // Fund the cashback pool through the real ledger service (only once).
   if ((await balanceOf(db as never, accounts.merchantPool(merchant.id, 'INR').key)) === 0n) {
     await fundCouponPool(coupon.id, 10_000_000n, 'seed');
+  }
+
+  const owned = await db.adCampaign.findFirst({ where: { title: 'Summer Collection Launch' } });
+  if (!owned) {
+    const c = await db.adCampaign.create({
+      data: {
+        ownerId: advertiser.id, advertiser: 'Demo Advertiser', title: 'Summer Collection Launch',
+        videoUrl: 'https://cdn.example.com/summer.mp4', durationSec: 10, rewardMinor: 300n, currency: 'INR', status: 'ACTIVE',
+      },
+    });
+    await fundCampaign(c.id, 2_000_000n, 'seed');
   }
 
   const campaign = await db.adCampaign.findFirst({ where: { title: 'Launch Spotlight' } });

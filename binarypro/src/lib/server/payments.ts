@@ -6,6 +6,7 @@ import { PLANS, type Tier } from '@/lib/domain/plans';
 import { verifySignature } from '@/lib/domain/payments';
 import { activateMembership, isMembershipActive, membershipPrice, parseTier, recordMembershipRevenue } from './membership';
 import { markOrderPaid } from './orders';
+import { fundCampaignTx } from './ads';
 import { getConfig } from './config';
 import { db, type Tx } from './db';
 import { DomainError } from './errors';
@@ -77,6 +78,8 @@ export async function handleCapturedEvent(event: CapturedEvent, now = new Date()
     if (payment.kind === 'MEMBERSHIP') {
       await recordMembershipRevenue(tx, payment.id, payment.amountMinor, payment.currency as Currency);
       await activateMembership(tx, payment.userId, parseTier(payment.referenceId), now);
+    } else if (payment.kind === 'ADS_TOPUP') {
+      await fundCampaignTx(tx, payment.referenceId, payment.amountMinor, payment.userId, `ADTOPUP:${payment.id}`);
     } else {
       await markOrderPaid(tx, payment.referenceId, payment.id);
     }

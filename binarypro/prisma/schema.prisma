@@ -20,6 +20,7 @@ enum Role {
   FINANCE
   SUPPORT
   MERCHANT
+  ADVERTISER
 }
 
 enum Tier {
@@ -69,6 +70,7 @@ enum KycStatus {
 enum PaymentKind {
   MEMBERSHIP
   ORDER
+  ADS_TOPUP
 }
 
 enum PaymentStatus {
@@ -161,6 +163,7 @@ model User {
   commissions Commission[]
   withdrawals Withdrawal[]
   adViews     AdView[]
+  campaigns   AdCampaign[]
   otpCodes    OtpCode[]
   pvLegs      PvLeg[]
 
@@ -391,6 +394,9 @@ model Withdrawal {
 
 model AdCampaign {
   id          String         @id @default(cuid())
+  // The advertiser who created the campaign (null for campaigns created by staff).
+  ownerId     String?
+  owner       User?          @relation(fields: [ownerId], references: [id])
   advertiser  String
   title       String
   videoUrl    String
@@ -400,6 +406,8 @@ model AdCampaign {
   status      CampaignStatus @default(PENDING_REVIEW)
   createdAt   DateTime       @default(now())
   views       AdView[]
+
+  @@index([ownerId])
 }
 
 model AdView {

@@ -4,32 +4,35 @@ import { isMembershipActive } from './membership';
 import { PLANS, type Tier } from '@/lib/domain/plans';
 import { accounts } from './accounts';
 import { audit } from './audit';
-import { db } from './db';
+import { db, type Tx } from './db';
 import { DomainError } from './errors';
 import { balanceOf, postTransaction } from './ledger';
 import { dayKey } from './time';
 import { randomUUID } from 'node:crypto';
 import type { Currency } from '@/lib/domain/money';
 
-/** Advertiser deposits money into a campaign pool. Required before the campaign can pay anyone. */
+/** Advertiser deposit into a campaign pool, inside an existing transaction (used by the payment webhook). */
+export async function fundCampaignTx(tx: Tx, campaignId: string, amountMinor: bigint, actorId: string | null, reference: string) {
+  const campaign = await tx.adCampaign.findUnique({ where: { id: campaignId } });
+  if (!campaign) throw new DomainError('NOT_FOUND', 'Campaign not found', 404);
+  const currency = campaign.currency as Currency;
+  await postTransaction(tx, {
+    reference,
+    type: 'ADVERTISER_FUNDING',
+    description: `Advertiser deposit for ${campaign.title}`,
+    legs: [
+      { ...accounts.cash(currency), direction: 'DEBIT', amountMinor },
+      { ...accounts.advertiserPool(campaignId, currency), direction: 'CREDIT', amountMinor },
+    ],
+  });
+  await audit(tx, { action: 'ad.funded', actorId, targetId: campaignId, meta: { amount: amountMinor.toString() } });
+  return { campaignId, funded: amountMinor };
+}
+
+/** Staff deposit into a campaign pool. */
 export async function fundCampaign(campaignId: string, amountMinor: bigint, actorId: string) {
   if (amountMinor <= 0n) throw new DomainError('INVALID_AMOUNT', 'Amount must be positive');
-  return db.$transaction(async (tx) => {
-    const campaign = await tx.adCampaign.findUnique({ where: { id: campaignId } });
-    if (!campaign) throw new DomainError('NOT_FOUND', 'Campaign not found', 404);
-    const currency = campaign.currency as Currency;
-    await postTransaction(tx, {
-      reference: `ADFUND:${campaignId}:${randomUUID()}`,
-      type: 'ADVERTISER_FUNDING',
-      description: `Advertiser deposit for ${campaign.title}`,
-      legs: [
-        { ...accounts.cash(currency), direction: 'DEBIT', amountMinor },
-        { ...accounts.advertiserPool(campaignId, currency), direction: 'CREDIT', amountMinor },
-      ],
-    });
-    await audit(tx, { action: 'ad.funded', actorId, targetId: campaignId, meta: { amount: amountMinor.toString() } });
-    return { campaignId, funded: amountMinor };
-  });
+  return db.$transaction((tx) => fundCampaignTx(tx, campaignId, amountMinor, actorId, `ADFUND:${campaignId}:${randomUUID()}`));
 }
 
 export async function startAdView(userId: string, campaignId: string, now = new Date()) {

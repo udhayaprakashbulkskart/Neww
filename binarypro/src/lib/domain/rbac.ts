@@ -12,10 +12,11 @@ export const PERMISSIONS = [
   'fraud:review',
   'audit:read',
   'staff:manage',
+  'campaigns:own',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
-export type StaffRole = 'MEMBER' | 'ADMIN' | 'FINANCE' | 'SUPPORT' | 'MERCHANT';
+export type StaffRole = 'MEMBER' | 'ADMIN' | 'FINANCE' | 'SUPPORT' | 'MERCHANT' | 'ADVERTISER';
 
 const ROLE_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
   MEMBER: [],
@@ -23,6 +24,7 @@ const ROLE_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
   FINANCE: ['withdrawals:read', 'withdrawals:decide', 'commissions:read', 'commissions:run', 'orders:read', 'ads:fund', 'fx:manage', 'audit:read'],
   SUPPORT: ['users:read', 'orders:read', 'fraud:review'],
   MERCHANT: ['merchant:own', 'orders:read'],
+  ADVERTISER: ['campaigns:own'],
 };
 
 export function can(role: StaffRole, permission: Permission): boolean {

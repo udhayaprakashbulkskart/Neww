@@ -43,6 +43,12 @@ export default async function Admin() {
         <div className="panel p-4"><div className="label">Open fraud flags</div><div className="mt-2 text-2xl font-extrabold">{flags.length}</div></div>
       </div>
 
+      {can(role, 'staff:manage') && (
+        <Section title="Advertiser accounts" subtitle="Grant the advertiser role to an existing account. The member must create their account first.">
+          <AdminForm url="/api/admin/advertisers" submitLabel="Grant advertiser role" fields={[{ name: 'email', label: 'Account email', type: 'email', placeholder: 'brand@example.com' }]} />
+        </Section>
+      )}
+
       {canWithdrawals && (
         <Section title="Withdrawal requests" subtitle="Approve only after bank transfer. Reject returns the money to the wallet.">
           {withdrawals.length === 0 ? <p className="text-sm text-[#a39a86]">Nothing to review.</p> : (

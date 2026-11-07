@@ -3,7 +3,9 @@
 // Every balance movement is a balanced LedgerTransaction (double-entry); wallets are derived from entries.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Vercel functions run on Amazon Linux (rhel-openssl-3.0.x); local dev uses native.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

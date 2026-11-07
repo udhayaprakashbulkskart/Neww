@@ -82,11 +82,11 @@ export async function issueSession(userId: string, sessionVersion: number): Prom
 }
 
 export async function setSessionCookie(token: string) {
-  const isProd = getConfig().isProd;
+  const cfg = getConfig();
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: isProd,
+    secure: cfg.isProd || cfg.appUrl.startsWith('https://'),
     path: '/',
     maxAge: 7 * 24 * 3600,
   });

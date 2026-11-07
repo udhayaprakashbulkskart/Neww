@@ -35,57 +35,52 @@ function useBusy() {
   return { busy, setBusy, msg, setMsg };
 }
 
-// ---------- Sign in ----------
-export function LoginForm({ ref }: { ref?: string }) {
+// ---------- Sign in and create account (email and password) ----------
+export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initialMode?: 'signin' | 'register' }) {
   const router = useRouter();
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
+  const [mode, setMode] = useState<'signin' | 'register'>(initialMode);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { busy, setBusy, msg, setMsg } = useBusy();
 
-  async function sendCode(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setMsg(null);
-    const r = await call('/api/auth/otp/request', 'POST', { phone });
-    setBusy(false);
-    if (r.ok) setStep('code');
-    else setMsg({ kind: 'err', text: r.message });
-  }
-
-  async function verify(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true); setMsg(null);
-    const r = await call('/api/auth/otp/verify', 'POST', { phone, code, name: name || undefined, ref });
+    const r = mode === 'signin'
+      ? await call('/api/auth/login', 'POST', { email, password })
+      : await call('/api/auth/register', 'POST', { name, email, password, ref: ref ?? null });
     setBusy(false);
     if (r.ok) router.push('/dashboard');
     else setMsg({ kind: 'err', text: r.message });
   }
 
-  if (step === 'phone') {
-    return (
-      <form onSubmit={sendCode} className="space-y-4">
-        <div>
-          <label className="label" htmlFor="phone">Mobile number (with country code)</label>
-          <input id="phone" className="input mt-2" placeholder="+91 98xxxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} required autoComplete="tel" />
-        </div>
-        <button className="btn btn-brand w-full" disabled={busy}>{busy ? 'Sending…' : 'Send code'}</button>
-        {msg && <Message kind={msg.kind} text={msg.text} />}
-      </form>
-    );
-  }
   return (
-    <form onSubmit={verify} className="space-y-4">
+    <form onSubmit={submit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-black/50 p-1 text-sm">
+        {(['signin', 'register'] as const).map((m) => (
+          <button key={m} type="button" onClick={() => { setMode(m); setMsg(null); }}
+            className={`rounded-lg py-2 font-semibold ${mode === m ? 'bg-[linear-gradient(135deg,#ff6a00,#d4af37)] text-black' : 'text-[#a39a86]'}`}>
+            {m === 'signin' ? 'Sign in' : 'Create account'}
+          </button>
+        ))}
+      </div>
+      {mode === 'register' && (
+        <div>
+          <label className="label" htmlFor="name">Full name</label>
+          <input id="name" className="input mt-2" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required autoComplete="name" />
+        </div>
+      )}
       <div>
-        <label className="label" htmlFor="code">6-digit code</label>
-        <input id="code" className="input mt-2 tracking-[.4em]" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} required />
+        <label className="label" htmlFor="email">Email</label>
+        <input id="email" type="email" className="input mt-2" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
       </div>
       <div>
-        <label className="label" htmlFor="name">Your name (first sign-in)</label>
-        <input id="name" className="input mt-2" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+        <label className="label" htmlFor="password">Password</label>
+        <input id="password" type="password" className="input mt-2" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === 'register' ? 10 : 1} maxLength={128} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
+        {mode === 'register' && <p className="mt-1 text-xs text-[#8f8672]">At least 10 characters, with a letter and a number.</p>}
       </div>
-      <button className="btn btn-brand w-full" disabled={busy}>{busy ? 'Verifying…' : 'Verify and continue'}</button>
-      <button type="button" className="btn btn-ghost w-full" onClick={() => setStep('phone')}>Change number</button>
+      <button className="btn btn-brand w-full" disabled={busy}>{busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
       {msg && <Message kind={msg.kind} text={msg.text} />}
     </form>
   );

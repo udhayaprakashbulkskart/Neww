@@ -1,11 +1,10 @@
 // End-to-end HTTP smoke test against a running server.
-// Usage: APP_URL=http://localhost:3000 LOG_FILE=/path/to/server.log node scripts/e2e-smoke.mjs
-// The dev SMS provider prints OTP codes to the server log; this script reads them from LOG_FILE.
-import { readFileSync } from 'node:fs';
+// Usage: APP_URL=http://localhost:3000 node scripts/e2e-smoke.mjs
 import { createHmac } from 'node:crypto';
 
 const BASE = process.env.APP_URL ?? 'http://localhost:3000';
-const LOG = process.env.LOG_FILE;
+// Seeded demo accounts share one password (SEED_PASSWORD, default DemoPassword123).
+const PASSWORD = process.env.E2E_PASSWORD ?? process.env.SEED_PASSWORD ?? 'DemoPassword123';
 const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? 'dev-only-webhook-secret-do-not-use-in-prod';
 let failures = 0;
 const results = [];
@@ -15,7 +14,7 @@ const check = (name, cond, extra = '') => {
 };
 
 class Session {
-  constructor(phone, ref) { this.phone = phone; this.ref = ref; this.cookie = null; }
+  constructor(email) { this.email = email; this.cookie = null; }
   async req(method, path, body, extraHeaders = {}) {
     const res = await fetch(`${BASE}${path}`, {
       method,
@@ -28,14 +27,8 @@ class Session {
     const json = await res.json().catch(() => ({}));
     return { status: res.status, json };
   }
-  async login(name) {
-    const before = readFileSync(LOG, 'utf8').length;
-    await this.req('POST', '/api/auth/otp/request', { phone: this.phone });
-    await new Promise((r) => setTimeout(r, 300));
-    const text = readFileSync(LOG, 'utf8').slice(before);
-    const m = [...text.matchAll(/code is (\d{6})/g)].pop();
-    if (!m) throw new Error(`No OTP found in log for ${this.phone}`);
-    return this.req('POST', '/api/auth/otp/verify', { phone: this.phone, code: m[1], name, ref: this.ref });
+  login() {
+    return this.req('POST', '/api/auth/login', { email: this.email, password: PASSWORD });
   }
 }
 
@@ -43,15 +36,17 @@ const sign = (body) => createHmac('sha256', WEBHOOK_SECRET).update(body).digest(
 
 async function main() {
   // 1. Sign in as seeded Alice (GOLD) and read her profile.
-  const alice = new Session('+919100000002');
+  const alice = new Session('alice@binarypro.test');
   const a = await alice.login();
-  check('OTP sign-in succeeds for seeded member', a.status === 200, `status ${a.status}`);
+  check('Email and password sign-in succeeds for seeded member', a.status === 200, `status ${a.status}`);
   const me = await alice.req('GET', '/api/me');
   check('GET /api/me returns the member', me.status === 200 && me.json.name === 'Alice');
-  check('Alice has an active GOLD membership', me.json.membership?.tier === 'GOLD' && me.json.membership?.active === true);
+  check('Alice has an active paid membership', ['GOLD', 'PLATINUM'].includes(me.json.membership?.tier) && me.json.membership?.active === true);
 
   // 2. Unauthenticated and cross-site requests are refused.
-  const anon = await new Session('+919100000099').req('GET', '/api/me');
+  const anon = await new Session('nobody@binarypro.test').req('GET', '/api/me');
+  const wrong = await new Session('alice@binarypro.test').req('POST', '/api/auth/login', { email: 'alice@binarypro.test', password: 'not-the-password' });
+  check('Wrong password is refused with a generic error', wrong.status === 401 && wrong.json.error?.code === 'BAD_CREDENTIALS');
   check('Unauthenticated /api/me is refused', anon.status === 401);
   const csrf = await fetch(`${BASE}/api/auth/logout`, { method: 'POST', headers: { Origin: 'https://evil.example', Cookie: alice.cookie } });
   check('Cross-site POST is blocked', csrf.status === 403);
@@ -78,20 +73,25 @@ async function main() {
   check('Order payment captured', paid.status === 200);
 
   // 6. Admin: deliver, then verification is refused inside the return window.
-  const admin = new Session('+919000000001');
-  await admin.login('Admin');
+  const admin = new Session('platformadmin@binarypro.test');
+  await admin.login();
   const deliver = await admin.req('POST', `/api/orders/${order.json.order.id}/deliver`);
   check('Admin marks order delivered', deliver.status === 200);
   const early = await admin.req('POST', `/api/orders/${order.json.order.id}/verify`);
   check('Verification refused inside the 7-day return window', early.status === 409 && early.json.error.code === 'RETURN_WINDOW_OPEN');
-  const fin = new Session('+919000000002');
-  await fin.login('Finance');
+  const fin = new Session('financelead@binarypro.test');
+  await fin.login();
   const forbidden = await fin.req('POST', `/api/orders/${order.json.order.id}/verify`);
   check('Finance cannot verify orders (role separation)', forbidden.status === 403);
 
   // 7. Advertising: a view cannot be completed early; a full watch pays the reward.
+  // Create, activate and fund a fresh campaign so the check does not depend on earlier data.
+  const created = await admin.req('POST', '/api/admin/campaigns', { advertiser: 'Smoke Test Brand', title: `Smoke ${Date.now()}`, videoUrl: 'https://cdn.example.com/smoke.mp4', durationSec: 5, rewardMinor: '3.00', currency: 'INR' });
+  const campaignId = created.json.id;
+  await admin.req('PATCH', '/api/admin/campaigns', { campaignId, action: 'ACTIVATE' });
+  await fin.req('PATCH', '/api/admin/campaigns', { campaignId, action: 'FUND', amount: '100.00' });
   const ads = await alice.req('GET', '/api/ads');
-  const campaign = ads.json.campaigns?.find((c) => !c.watchedToday);
+  const campaign = ads.json.campaigns?.find((c) => c.id === campaignId && !c.watchedToday);
   if (campaign) {
     const start = await alice.req('POST', `/api/ads/${campaign.id}/start`);
     check('Ad view starts', start.status === 201);
@@ -106,9 +106,9 @@ async function main() {
 
   // 8. Placement: a new member joins under Alice and takes her open RIGHT slot.
   const aliceId = me.json.id;
-  const newbie = new Session('+919100000077', aliceId);
-  const nb = await newbie.login('Newbie');
-  check('Referred sign-up creates a member', nb.status === 200);
+  const newbie = new Session(`newbie.${Date.now()}@binarypro.test`);
+  const nb = await newbie.req('POST', '/api/auth/register', { name: 'Newbie Member', email: newbie.email, password: PASSWORD, ref: aliceId });
+  check('Referred sign-up creates a member', nb.status === 201);
   const place = await newbie.req('POST', '/api/placement', { parentId: aliceId, side: 'RIGHT' });
   check('Member places into the sponsor downline', place.status === 200 || place.status === 409, JSON.stringify(place.json).slice(0, 100));
   const outsider = await newbie.req('POST', '/api/placement', { parentId: 'nonexistent-id-0000000', side: 'LEFT' });

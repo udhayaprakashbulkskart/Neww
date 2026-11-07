@@ -127,9 +127,13 @@ enum Normal {
 
 model User {
   id                String     @id @default(cuid())
-  phone             String     @unique
+  phone             String?    @unique
   name              String
-  email             String?
+  email             String?    @unique
+  // scrypt hash: scrypt$<salt>$<key>. Null only for accounts created before password sign-in.
+  passwordHash      String?
+  failedLogins      Int        @default(0)
+  lockedUntil       DateTime?
   role              Role       @default(MEMBER)
   status            UserStatus @default(ACTIVE)
   kyc               KycStatus  @default(NOT_SUBMITTED)

@@ -15,9 +15,9 @@ export default async function LoginPage({ searchParams }: { searchParams: { ref?
     <div className="mx-auto max-w-md space-y-6 px-6 py-12">
       <div className="flex justify-center"><Logo /></div>
       <div className="panel p-6">
-        <h1 className="text-xl font-extrabold">Sign in with your mobile number</h1>
-        <p className="mt-1 text-sm text-[#a39a86]">We send a one-time code. Never share it with anyone.</p>
-        <div className="mt-5"><LoginForm ref={ref} /></div>
+        <h1 className="text-xl font-extrabold">{ref ? 'Join with your invite' : 'Welcome back'}</h1>
+        <p className="mt-1 text-sm text-[#a39a86]">Sign in with your email and password.</p>
+        <div className="mt-5"><LoginForm ref={ref} initialMode={ref ? 'register' : 'signin'} /></div>
         {ref && <p className="mt-4 text-xs text-[#a39a86]">You were invited by a BinaryPro member.</p>}
       </div>
     </div>

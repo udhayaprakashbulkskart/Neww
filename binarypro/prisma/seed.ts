@@ -5,6 +5,10 @@ import { balanceOf } from '../src/lib/server/ledger';
 import { accounts } from '../src/lib/server/accounts';
 import { fundCouponPool } from '../src/lib/server/coupons';
 import { fundCampaign } from '../src/lib/server/ads';
+import { hashPassword } from '../src/lib/server/password';
+
+// Demo password: set SEED_PASSWORD, or use the development default. Seeding never runs in production.
+const SEED_PASSWORD = process.env.SEED_PASSWORD ?? 'DemoPassword123';
 
 if (process.env.APP_ENV === 'production' || process.env.NODE_ENV === 'production') {
   console.error('Seed refused: never seed a production database.');
@@ -25,11 +29,12 @@ async function main() {
   }
 
   const farFuture = new Date('2100-01-01T00:00:00Z');
+  const passwordHash = await hashPassword(SEED_PASSWORD);
   const mk = async (phone: string, name: string, data: Record<string, unknown> = {}) =>
     db.user.upsert({
       where: { phone },
-      create: { phone, name, ...data },
-      update: {},
+      create: { phone, name, passwordHash, email: `${name.toLowerCase().replace(/[^a-z]/g, '')}@binarypro.test`, ...data },
+      update: { passwordHash, email: `${name.toLowerCase().replace(/[^a-z]/g, '')}@binarypro.test` },
     });
   const withMembership = async (userId: string, tier: 'BASIC' | 'SILVER' | 'GOLD' | 'PLATINUM') =>
     db.membership.upsert({

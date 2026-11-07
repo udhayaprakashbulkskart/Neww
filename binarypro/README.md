@@ -100,17 +100,18 @@ npx tsx prisma/seed.ts                  # demo staff, members, merchant, coupon,
 npm run dev                             # http://localhost:3000
 ```
 
-Sign in with a seeded mobile number. In development, the one-time code is printed to the server console
-(`[sms:dev] ... code is 123456`), with the number masked.
+Sign in at `/login` with an email and password. Seeded accounts use the `SEED_PASSWORD` value (default
+`DemoPassword123` in development only). New members can create an account from the same page; an invite link
+(`/login?ref=<member id>`) places the new member under the inviter.
 
-| Role | Mobile | Notes |
+| Role | Email | Notes |
 | --- | --- | --- |
-| Admin | +919000000001 | All permissions |
-| Finance | +919000000002 | Withdrawals, FX, ad funding |
-| Founder (Platinum, root) | +919100000001 | Top of the demo tree |
-| Alice (Gold) | +919100000002 | Left child of the founder |
-| Bob (Silver) | +919100000003 | Right child of the founder |
-| Carol (Basic) | +919100000004 | Left child of Alice |
+| Admin | platformadmin@binarypro.test | All permissions |
+| Finance | financelead@binarypro.test | Withdrawals, FX, ad funding |
+| Founder (Platinum, root) | founder@binarypro.test | Top of the demo tree |
+| Alice (Gold) | alice@binarypro.test | Left child of the founder |
+| Bob (Silver) | bob@binarypro.test | Right child of the founder |
+| Carol (Basic) | carol@binarypro.test | Left child of Alice |
 
 ---
 
@@ -122,7 +123,7 @@ npm test                       # unit tests: money, binary, ledger rules, cashba
 TEST_DATABASE_URL=postgresql://... ./scripts/test-db-setup.sh   # migrate a dedicated TEST database
 npm run test:integration       # ledger, commissions, returns, withdrawals, FX, ads, webhooks, concurrency
 npm run build && npm start &   # then:
-APP_URL=http://localhost:3000 LOG_FILE=server.log node scripts/e2e-smoke.mjs   # real HTTP flows
+APP_URL=http://localhost:3000 SEED_PASSWORD=DemoPassword123 node scripts/e2e-smoke.mjs   # real HTTP flows
 ```
 
 The integration suite runs TRUNCATE on the database it is given. Point it only at a dedicated test database; the default

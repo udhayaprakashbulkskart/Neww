@@ -175,6 +175,31 @@ export default async function Dashboard() {
         <div className="mt-5"><MembershipPicker currentTier={d.activeMembership ? tier : ''} tiers={prices} /></div>
       </Card>
 
+      <section className="rounded-3xl border border-[#d4af37]/25 bg-[linear-gradient(160deg,#1d1606,#070707)] p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold">Retail milestone: ₹50,000</h2>
+            <p className="mt-1 max-w-xl text-sm text-[#8f8672]">Counts only your own verified retail sales, delivered and past the return window. Team size and recruitment do not count.</p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-black text-[#f7e09a]">{formatMoney(d.personalPvInrMinor, BASE_CURRENCY)}</div>
+            <div className="text-xs text-[#8f8672]">of {formatMoney(5_000_000n, BASE_CURRENCY)}</div>
+          </div>
+        </div>
+        <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#1a1408]">
+          <div className="h-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)]" style={{ width: `${Math.min(100, Number((d.personalPvInrMinor * 100n) / 5_000_000n))}%` }} />
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {['iPhone', 'Car', 'Bike'].map((prize) => (
+            <div key={prize} className="rounded-2xl border border-white/5 bg-black/40 p-4">
+              <div className="text-xs font-bold uppercase tracking-widest text-[#f7e09a]">{prize}</div>
+              <div className="mt-1 text-xs text-[#8f8672]">Awarded only after verification and approval, under the published terms.</div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-[11px] text-[#6f6758]">Prize details, eligibility and timing are set in the programme terms, which must be approved before any prize is announced. Prizes are not guaranteed.</p>
+      </section>
+
       <section>
         <h2 className="mb-3 text-base font-bold">Quick actions</h2>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">

@@ -1,3 +1,4 @@
+import { PublicHeader } from '@/components/public-header';
 import Link from 'next/link';
 import { PLANS, TIERS } from '@/lib/domain/plans';
 import { formatMoney } from '@/lib/domain/money';
@@ -6,7 +7,9 @@ import { Disclaimer } from '@/components/ui';
 
 export default function Home() {
   return (
-    <div className="space-y-16">
+    <>
+    <PublicHeader />
+    <div className="mx-auto max-w-6xl space-y-16 px-6 py-12">
       <section className="grid items-center gap-10 lg:grid-cols-2">
         <div className="space-y-6">
           <p className="label">Retail-led membership platform</p>
@@ -67,5 +70,6 @@ export default function Home() {
         ))}
       </section>
     </div>
+    </>
   );
 }

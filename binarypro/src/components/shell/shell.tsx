@@ -45,6 +45,10 @@ export function AppShell({ children, items, userName, rank, isStaff }: {
           <Link href="/dashboard"><Logo /></Link>
           <div className="text-xs text-[#f7e09a]">{rank}</div>
         </header>
+        <div className="hidden items-center justify-between border-b border-white/5 bg-black/60 px-10 py-4 lg:flex">
+          <div className="text-sm text-[#8f8672]">Signed in as <span className="font-semibold text-white">{userName}</span></div>
+          <div className="flex items-center gap-2 rounded-full border border-[#d4af37]/30 bg-[#d4af37]/10 px-4 py-1.5 text-xs font-semibold text-[#f7e09a]">{rank}</div>
+        </div>
         <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-12 lg:pt-10">{children}</main>
       </div>
 

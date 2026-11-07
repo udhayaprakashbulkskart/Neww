@@ -9,6 +9,7 @@ const P: Record<string, string> = {
   store: 'M4 9l1-5h14l1 5M4 9v11h16V9M4 9h16M9 20v-6h6v6',
   copy: 'M9 9h10v12H9zM5 15V5h10',
   arrow: 'M5 12h14m-6-6l6 6-6 6',
+  chart: 'M4 20V10m6 10V4m6 16v-7m6 7H2',
 };
 
 export function Icon({ name, className = 'h-5 w-5' }: { name: keyof typeof P | string; className?: string }) {

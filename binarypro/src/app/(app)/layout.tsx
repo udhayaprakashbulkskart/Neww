@@ -11,6 +11,7 @@ const ITEMS: NavItem[] = [
   { href: '/ads', label: 'Earn with ads', icon: 'play' },
   { href: '/shop', label: 'Shop', icon: 'bag' },
   { href: '/tree', label: 'Binary tree', icon: 'tree' },
+  { href: '/earnings', label: 'Earnings', icon: 'chart' },
   { href: '/wallet', label: 'Wallet', icon: 'wallet' },
 ];
 

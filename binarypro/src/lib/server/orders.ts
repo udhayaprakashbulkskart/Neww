@@ -85,6 +85,7 @@ export async function createOrder(
       userRedemptions,
       perUserLimit: coupon.perUserLimit,
       poolBalanceMinor: poolBalance,
+      tierMaxPercent: PLANS[(buyer.membership?.tier ?? 'BASIC') as Tier].couponMaxPercent,
     });
     if (!result.ok) throw new DomainError('COUPON_INVALID', result.reason, 409);
     couponId = coupon.id;

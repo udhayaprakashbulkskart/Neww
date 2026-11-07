@@ -19,6 +19,8 @@ export interface PlanConfig {
   binaryDailyCapInrMinor: bigint;
   /** Advertising rewards: maximum completed ad views per day. */
   adViewsPerDay: number;
+  /** Highest cashback coupon percent this tier may redeem (10, 20, 30 or 50). */
+  couponMaxPercent: number;
 }
 
 export const PLANS: Record<Tier, PlanConfig> = {
@@ -29,6 +31,7 @@ export const PLANS: Record<Tier, PlanConfig> = {
     binaryBps: 0,
     binaryDailyCapInrMinor: 0n,
     adViewsPerDay: 5,
+    couponMaxPercent: 10,
   },
   SILVER: {
     priceInrMinor: 99_900n,
@@ -37,6 +40,7 @@ export const PLANS: Record<Tier, PlanConfig> = {
     binaryBps: 1000,
     binaryDailyCapInrMinor: 500_000n,
     adViewsPerDay: 10,
+    couponMaxPercent: 20,
   },
   GOLD: {
     priceInrMinor: 299_900n,
@@ -45,6 +49,7 @@ export const PLANS: Record<Tier, PlanConfig> = {
     binaryBps: 1000,
     binaryDailyCapInrMinor: 1_500_000n,
     adViewsPerDay: 15,
+    couponMaxPercent: 30,
   },
   PLATINUM: {
     priceInrMinor: 999_900n,
@@ -53,6 +58,7 @@ export const PLANS: Record<Tier, PlanConfig> = {
     binaryBps: 1000,
     binaryDailyCapInrMinor: 5_000_000n,
     adViewsPerDay: 20,
+    couponMaxPercent: 50,
   },
 };
 

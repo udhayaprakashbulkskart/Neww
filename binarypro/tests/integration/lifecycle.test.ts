@@ -31,8 +31,8 @@ async function payOrder(orderId: string) {
 async function buildTree() {
   const root = await makeUser({ name: 'Root', tier: 'PLATINUM' });
   const s = await makeUser({ name: 'Sponsor', sponsorId: root.id, parentId: root.id, side: 'LEFT', tier: 'GOLD' });
-  const b = await makeUser({ name: 'Buyer', sponsorId: s.id, parentId: s.id, side: 'LEFT', tier: 'BASIC' });
-  const b2 = await makeUser({ name: 'Buyer2', sponsorId: s.id, parentId: s.id, side: 'RIGHT', tier: 'BASIC' });
+  const b = await makeUser({ name: 'Buyer', sponsorId: s.id, parentId: s.id, side: 'LEFT', tier: 'GOLD' });
+  const b2 = await makeUser({ name: 'Buyer2', sponsorId: s.id, parentId: s.id, side: 'RIGHT', tier: 'GOLD' });
   return { root, s, b, b2 };
 }
 

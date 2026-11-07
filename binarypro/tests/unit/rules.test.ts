@@ -23,6 +23,7 @@ const cb = (over: Partial<Parameters<typeof computeCashback>[0]> = {}) => ({
   userRedemptions: 0,
   perUserLimit: 1,
   poolBalanceMinor: 1_000_000n,
+  tierMaxPercent: 50,
   ...over,
 });
 
@@ -42,6 +43,11 @@ describe('cashback coupons', () => {
 
   it('never pays more than the funding pool holds', () => {
     expect(computeCashback(cb({ poolBalanceMinor: 5_000n }))).toEqual({ ok: true, cashbackMinor: 5_000n });
+  });
+
+  it('caps the coupon percent at the membership tier benefit', () => {
+    expect(computeCashback(cb({ percent: 20, tierMaxPercent: 10 })).ok).toBe(false);
+    expect(computeCashback(cb({ percent: 10, tierMaxPercent: 10 })).ok).toBe(true);
   });
 
   it('refuses when the pool is empty', () => {

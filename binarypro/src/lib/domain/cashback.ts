@@ -25,12 +25,15 @@ export interface CashbackInput {
   perUserLimit: number;
   /** Real money available in the funding pool, in coupon currency. */
   poolBalanceMinor: bigint;
+  /** The buyer's membership tier cap for coupon percent. */
+  tierMaxPercent: number;
 }
 
 export type CashbackResult = { ok: true; cashbackMinor: bigint } | { ok: false; reason: string };
 
 export function computeCashback(input: CashbackInput): CashbackResult {
   if (!isAllowedCouponPercent(input.percent)) return { ok: false, reason: 'Coupon percent is not an allowed tier' };
+  if (input.percent > input.tierMaxPercent) return { ok: false, reason: `Your membership allows up to ${input.tierMaxPercent}% coupons` };
   if (!input.active) return { ok: false, reason: 'Coupon is not active' };
   if (input.now < input.startsAt || input.now > input.endsAt) return { ok: false, reason: 'Coupon is outside its validity window' };
   if (input.orderCurrency !== input.couponCurrency) return { ok: false, reason: 'Coupon currency does not match the order' };

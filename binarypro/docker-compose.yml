@@ -1,0 +1,32 @@
+# Local production-like stack: PostgreSQL + BinaryPro.
+# Provide secrets via an env file (never commit it): cp .env.production.example .env.production
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: binarypro
+      POSTGRES_USER: binarypro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U binarypro -d binarypro"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://binarypro:${POSTGRES_PASSWORD}@db:5432/binarypro?schema=public
+      DIRECT_URL: postgresql://binarypro:${POSTGRES_PASSWORD}@db:5432/binarypro?schema=public
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

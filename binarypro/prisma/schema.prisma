@@ -1,0 +1,441 @@
+// BinaryPro - database schema.
+// Money is stored as BigInt minor units (paise, cents, fils ...). All currencies use 2 decimal places.
+// Every balance movement is a balanced LedgerTransaction (double-entry); wallets are derived from entries.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  MEMBER
+  ADMIN
+  FINANCE
+  SUPPORT
+  MERCHANT
+}
+
+enum Tier {
+  BASIC
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum Currency {
+  INR
+  USD
+  EUR
+  GBP
+  AED
+  SGD
+  MYR
+  SAR
+}
+
+enum Side {
+  LEFT
+  RIGHT
+}
+
+enum Rank {
+  MEMBER
+  SENIOR_MEMBER
+  TEAM_LEADER
+  MANAGER
+  DIRECTOR
+  AMBASSADOR
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PaymentKind {
+  MEMBERSHIP
+  ORDER
+}
+
+enum PaymentStatus {
+  PENDING
+  CAPTURED
+  MISMATCH
+  FAILED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  DELIVERED
+  VERIFIED
+  RETURNED
+  CANCELLED
+}
+
+enum CommissionType {
+  DIRECT
+  BINARY
+}
+
+enum CommissionStatus {
+  POSTED
+  REVERSED
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+}
+
+enum CampaignStatus {
+  PENDING_REVIEW
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum CouponFunding {
+  MERCHANT
+  PROMO
+}
+
+enum Direction {
+  DEBIT
+  CREDIT
+}
+
+enum Normal {
+  DEBIT
+  CREDIT
+}
+
+model User {
+  id                String     @id @default(cuid())
+  phone             String     @unique
+  name              String
+  email             String?
+  role              Role       @default(MEMBER)
+  status            UserStatus @default(ACTIVE)
+  kyc               KycStatus  @default(NOT_SUBMITTED)
+  country           String     @default("IN")
+  preferredCurrency Currency   @default(INR)
+  rank              Rank       @default(MEMBER)
+  sessionVersion    Int        @default(0)
+  // Set for MERCHANT staff: the merchant whose orders this user may deliver.
+  merchantId        String?
+  createdAt         DateTime   @default(now())
+
+  // Sponsorship (who referred this member; drives direct commission)
+  sponsorId String?
+  sponsor   User?   @relation("Sponsorship", fields: [sponsorId], references: [id])
+  referrals User[]  @relation("Sponsorship")
+
+  // Binary placement (user-selected position; drives PV and binary commission)
+  parentId String?
+  parent   User?   @relation("Placement", fields: [parentId], references: [id])
+  children User[]  @relation("Placement")
+  side     Side?
+
+  membership  Membership?
+  orders      Order[]      @relation("BuyerOrders")
+  commissions Commission[]
+  withdrawals Withdrawal[]
+  adViews     AdView[]
+  otpCodes    OtpCode[]
+  pvLegs      PvLeg[]
+
+  // Exactly one member may occupy each binary slot.
+  @@unique([parentId, side])
+  @@index([sponsorId])
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+
+  @@index([phone, createdAt])
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  tier      Tier
+  active    Boolean  @default(true)
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  kind        PaymentKind
+  referenceId String
+  userId      String
+  amountMinor BigInt
+  currency    Currency
+  status      PaymentStatus @default(PENDING)
+  providerRef String        @unique
+  createdAt   DateTime      @default(now())
+  capturedAt  DateTime?
+
+  @@index([referenceId])
+}
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  providerEventId String   @unique
+  type            String
+  receivedAt      DateTime @default(now())
+}
+
+model Merchant {
+  id        String    @id @default(cuid())
+  name      String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  products  Product[]
+  orders    Order[]
+  coupons   Coupon[]
+}
+
+model Product {
+  id         String      @id @default(cuid())
+  merchantId String
+  merchant   Merchant    @relation(fields: [merchantId], references: [id])
+  name       String
+  priceMinor BigInt
+  currency   Currency
+  active     Boolean     @default(true)
+  orderItems OrderItem[]
+}
+
+model Order {
+  id                 String             @id @default(cuid())
+  buyerId            String
+  buyer              User               @relation("BuyerOrders", fields: [buyerId], references: [id])
+  merchantId         String
+  merchant           Merchant           @relation(fields: [merchantId], references: [id])
+  status             OrderStatus        @default(PENDING_PAYMENT)
+  currency           Currency
+  subtotalMinor      BigInt
+  // Retail sales value converted to INR minor units. This is the Point Value (PV) used for
+  // binary volume and for direct commission. Only verified retail sales count.
+  pvInrMinor         BigInt             @default(0)
+  cashbackMinor      BigInt             @default(0)
+  couponId           String?
+  paidAt             DateTime?
+  deliveredAt        DateTime?
+  returnWindowEndsAt DateTime?
+  verifiedAt         DateTime?
+  returnedAt         DateTime?
+  commissionBlocked  String? // reason when commissions/PV were withheld (fraud rules)
+  refundDueMinor     BigInt             @default(0)
+  createdAt          DateTime           @default(now())
+  items              OrderItem[]
+  commissions        Commission[]
+  redemptions        CouponRedemption[]
+
+  @@index([buyerId])
+  @@index([status])
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  order          Order   @relation(fields: [orderId], references: [id])
+  productId      String
+  product        Product @relation(fields: [productId], references: [id])
+  quantity       Int
+  unitPriceMinor BigInt
+}
+
+model Coupon {
+  id               String             @id @default(cuid())
+  code             String             @unique
+  funding          CouponFunding
+  merchantId       String?
+  merchant         Merchant?          @relation(fields: [merchantId], references: [id])
+  percent          Int // only 10, 20, 30 or 50 (enforced in code and by CHECK constraint)
+  maxCashbackMinor BigInt
+  minOrderMinor    BigInt             @default(0)
+  currency         Currency
+  budgetMinor      BigInt // informational cap; the ledger pool balance is the real limit
+  perUserLimit     Int                @default(1)
+  startsAt         DateTime
+  endsAt           DateTime
+  active           Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  redemptions      CouponRedemption[]
+}
+
+model CouponRedemption {
+  id            String   @id @default(cuid())
+  couponId      String
+  coupon        Coupon   @relation(fields: [couponId], references: [id])
+  userId        String
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id])
+  cashbackMinor BigInt
+  reversed      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([couponId, userId])
+}
+
+model Commission {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id])
+  type          CommissionType
+  sourceOrderId String?
+  order         Order?           @relation(fields: [sourceOrderId], references: [id])
+  periodKey     String?
+  amountMinor   BigInt // INR minor units
+  status        CommissionStatus @default(POSTED)
+  createdAt     DateTime         @default(now())
+
+  @@unique([userId, type, sourceOrderId])
+  @@unique([userId, type, periodKey])
+}
+
+// Unmatched binary volume per member per side (carry-forward is simply what is left here).
+model PvLeg {
+  userId  String
+  user    User   @relation(fields: [userId], references: [id])
+  side    Side
+  pvMinor BigInt @default(0)
+
+  @@id([userId, side])
+}
+
+model BinaryRun {
+  periodKey String   @id
+  ranAt     DateTime @default(now())
+  paidMinor BigInt   @default(0)
+  payouts   Int      @default(0)
+}
+
+model LedgerAccount {
+  id            String        @id @default(cuid())
+  key           String        @unique
+  normal        Normal
+  allowNegative Boolean       @default(false)
+  currency      Currency
+  userId        String?
+  createdAt     DateTime      @default(now())
+  entries       LedgerEntry[]
+}
+
+model LedgerTransaction {
+  id          String        @id @default(cuid())
+  reference   String        @unique // idempotency key
+  type        String
+  description String
+  createdAt   DateTime      @default(now())
+  entries     LedgerEntry[]
+}
+
+model LedgerEntry {
+  id          String            @id @default(cuid())
+  txId        String
+  tx          LedgerTransaction @relation(fields: [txId], references: [id])
+  accountId   String
+  account     LedgerAccount     @relation(fields: [accountId], references: [id])
+  direction   Direction
+  amountMinor BigInt
+  currency    Currency
+
+  @@index([accountId])
+  @@index([txId])
+}
+
+model Withdrawal {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  currency    Currency
+  amountMinor BigInt
+  status      WithdrawalStatus @default(REQUESTED)
+  reference   String           @unique
+  requestedAt DateTime         @default(now())
+  reviewedAt  DateTime?
+  reviewedBy  String?
+}
+
+model AdCampaign {
+  id          String         @id @default(cuid())
+  advertiser  String
+  title       String
+  videoUrl    String
+  durationSec Int
+  rewardMinor BigInt // paid to the viewer per completed view, in `currency`
+  currency    Currency
+  status      CampaignStatus @default(PENDING_REVIEW)
+  createdAt   DateTime       @default(now())
+  views       AdView[]
+}
+
+model AdView {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  campaignId  String
+  campaign    AdCampaign @relation(fields: [campaignId], references: [id])
+  dayKey      String
+  startedAt   DateTime   @default(now())
+  completedAt DateTime?
+  rewardMinor BigInt     @default(0)
+
+  @@unique([userId, campaignId, dayKey])
+}
+
+model FxRate {
+  id        String   @id @default(cuid())
+  currency  Currency @unique
+  // INR minor units per 1 whole unit of currency, scaled by 1e8 (INR itself = 1e8).
+  rateE8    BigInt
+  updatedAt DateTime @default(now())
+}
+
+model FraudFlag {
+  id        String   @id @default(cuid())
+  userId    String?
+  kind      String
+  detail    String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  targetId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+}

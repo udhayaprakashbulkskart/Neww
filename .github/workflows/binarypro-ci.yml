@@ -1,0 +1,48 @@
+name: BinaryPro CI
+
+on:
+  push:
+    paths: ['binarypro/**', '.github/workflows/binarypro-ci.yml']
+  pull_request:
+    paths: ['binarypro/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: binarypro
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: binarypro_test
+          POSTGRES_USER: binarypro
+          POSTGRES_PASSWORD: localdev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U binarypro" --health-interval 5s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://binarypro:localdev@localhost:5432/binarypro_test?schema=public
+      DATABASE_URL: postgresql://binarypro:localdev@localhost:5432/binarypro_test?schema=public
+      DIRECT_URL: postgresql://binarypro:localdev@localhost:5432/binarypro_test?schema=public
+      APP_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: binarypro/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test
+      - run: ./scripts/test-db-setup.sh
+      - run: npm run test:integration
+      - run: npm run build
+      - name: End-to-end smoke test
+        run: |
+          (npx next start -p 3100 > server.log 2>&1 &)
+          for i in $(seq 1 60); do curl -sf http://localhost:3100/ >/dev/null && break; sleep 1; done
+          npx tsx prisma/seed.ts
+          APP_URL=http://localhost:3100 LOG_FILE=server.log node scripts/e2e-smoke.mjs

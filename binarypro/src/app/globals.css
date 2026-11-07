@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg: #000000;
+  --panel: #0b0b0b;
+  --line: #2a2116;
+  --text: #f5efe1;
+  --muted: #a39a86;
+  --orange: #ff6a00;
+  --gold: #d4af37;
+}
+
+html, body { background: #000; color: var(--text); }
+body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+a { color: var(--gold); }
+
+.panel {
+  background: linear-gradient(180deg, #111010 0%, #070707 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.04), 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.gold-text {
+  background: linear-gradient(90deg, #f7e09a, #d4af37 45%, #ff8c33);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  border-radius: 12px; padding: .7rem 1.1rem; font-weight: 700; font-size: .95rem;
+  transition: transform .15s ease, opacity .15s ease, box-shadow .15s ease;
+  cursor: pointer; border: 1px solid transparent;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn-brand { background: linear-gradient(135deg, #ff6a00, #d4af37); color: #000; box-shadow: 0 8px 24px rgba(255, 106, 0, .25); }
+.btn-ghost { background: transparent; border-color: var(--line); color: var(--text); }
+.btn-danger { background: #2a0a0a; border-color: #5a1717; color: #ffb4b4; }
+.input {
+  width: 100%; background: #050505; border: 1px solid var(--line); border-radius: 12px;
+  padding: .7rem .85rem; color: var(--text); outline: none;
+}
+.input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212, 175, 55, .15); }
+.label { font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.kpi { font-variant-numeric: tabular-nums; }
+.table th { color: var(--muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+.table td, .table th { padding: .6rem .5rem; border-bottom: 1px solid #1c160d; text-align: left; vertical-align: top; }

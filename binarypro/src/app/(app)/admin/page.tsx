@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/server/auth';
 import { db } from '@/lib/server/db';
@@ -40,6 +41,11 @@ export default async function Admin() {
 
   return (
     <div className="space-y-6">
+      {can(role, 'finance:read') && (
+        <div className="flex flex-wrap gap-3 text-sm">
+          <Link className="btn" href="/admin/finance">Finance reports and reconciliation</Link>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="panel p-4"><div className="label">Members</div><div className="mt-2 text-2xl font-extrabold">{members}</div></div>
         <div className="panel p-4"><div className="label">Withdrawals awaiting review</div><div className="mt-2 text-2xl font-extrabold">{withdrawals.length}</div></div>

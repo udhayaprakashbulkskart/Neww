@@ -11,6 +11,7 @@ export const PERMISSIONS = [
   'fx:manage',
   'fraud:review',
   'audit:read',
+  'finance:read',
   'staff:manage',
   'campaigns:own',
 ] as const;
@@ -21,7 +22,7 @@ export type StaffRole = 'MEMBER' | 'ADMIN' | 'FINANCE' | 'SUPPORT' | 'MERCHANT' 
 const ROLE_PERMISSIONS: Record<StaffRole, readonly Permission[]> = {
   MEMBER: [],
   ADMIN: PERMISSIONS,
-  FINANCE: ['withdrawals:read', 'withdrawals:decide', 'commissions:read', 'commissions:run', 'orders:read', 'ads:fund', 'fx:manage', 'audit:read'],
+  FINANCE: ['withdrawals:read', 'withdrawals:decide', 'commissions:read', 'commissions:run', 'orders:read', 'ads:fund', 'fx:manage', 'audit:read', 'finance:read'],
   SUPPORT: ['users:read', 'orders:read', 'fraud:review'],
   MERCHANT: ['merchant:own', 'orders:read'],
   ADVERTISER: ['campaigns:own'],

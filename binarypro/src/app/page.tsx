@@ -124,7 +124,10 @@ export default async function Home() {
               </ul>
             </div>
             <Reveal delay={120}>
-              <div className="relative mx-auto aspect-video w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_30%_20%,#ff8c33,transparent_55%),linear-gradient(135deg,#1a1408,#000)] shadow-[0_30px_80px_rgba(0,0,0,.7)]">
+              <div className="relative mx-auto aspect-video w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-black shadow-[0_30px_80px_rgba(0,0,0,.7)]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/ads/earn-video-cover.jpg" alt="Advertiser video preview" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.45)_50%,rgba(0,0,0,.9))]" aria-hidden="true" />
                 <div className="absolute inset-x-6 bottom-6">
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full w-[70%] rounded-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)]" /></div>
                   <div className="mt-2 flex justify-between text-[11px] text-[#cfc6b0]"><span>0:21</span><span>Reward unlocks at 95%</span></div>

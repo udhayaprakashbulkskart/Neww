@@ -17,13 +17,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-black">
         <ServiceWorkerRegister />
         {children}
-        <footer className="mx-auto max-w-7xl px-6 pb-10 pt-6 text-xs text-[#6f6758]">
-          <div className="flex flex-wrap gap-5">
-            <a href="/compliance">Compliance</a>
-            <a href="/compliance#privacy">Privacy</a>
-            <a href="/compliance#terms">Terms</a>
-            <span>© CrownTree</span>
+        <footer className="border-t border-white/5 bg-black">
+          <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-3">
+              <div className="text-lg font-black tracking-[.06em]">CROWN<span className="gold-text">TREE</span></div>
+              <p className="text-xs leading-relaxed text-[#8f8672]">Global Business Network. Lead · Grow · Prosper.</p>
+            </div>
+            <nav aria-label="Platform" className="space-y-2 text-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#f7e09a]">Platform</div>
+              <a className="block text-[#b9b09a] hover:text-white" href="/#plans">Membership plans</a>
+              <a className="block text-[#b9b09a] hover:text-white" href="/#earn">Earn with ads</a>
+              <a className="block text-[#b9b09a] hover:text-white" href="/#tree">Binary team</a>
+              <a className="block text-[#b9b09a] hover:text-white" href="/install">Download app</a>
+            </nav>
+            <nav aria-label="Policies" className="space-y-2 text-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#f7e09a]">Policies</div>
+              <a className="block text-[#b9b09a] hover:text-white" href="/terms">Terms and conditions</a>
+              <a className="block text-[#b9b09a] hover:text-white" href="/privacy">Privacy policy</a>
+              <a className="block text-[#b9b09a] hover:text-white" href="/refund">Refund and returns</a>
+              <a className="block text-[#b9b09a] hover:text-white" href="/compliance">Compliance statement</a>
+            </nav>
+            <div className="space-y-2 text-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#f7e09a]">Support</div>
+              <p className="text-[#b9b09a]">Email: [support email]</p>
+              <p className="text-[#b9b09a]">Grievance Officer: [name and contact]</p>
+              <p className="text-xs text-[#6f6758]">CrownTree does not guarantee income. Read the compliance statement before joining.</p>
+            </div>
           </div>
+          <div className="border-t border-white/5 px-6 py-5 text-center text-xs text-[#6f6758]">© {new Date().getFullYear()} CrownTree. All rights reserved.</div>
         </footer>
       </body>
     </html>

@@ -1,6 +1,7 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { ServiceWorkerRegister } from '@/components/sw-register';
+import { SupportChat } from '@/components/support/support-chat';
 
 export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-black">
         <ServiceWorkerRegister />
         {children}
+        <SupportChat />
         <footer className="border-t border-white/5 bg-black">
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-3">
@@ -39,8 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </nav>
             <div className="space-y-2 text-sm">
               <div className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#f7e09a]">Support</div>
-              <p className="text-[#b9b09a]">Email: [support email]</p>
-              <p className="text-[#b9b09a]">Grievance Officer: [name and contact]</p>
+              <p className="text-[#b9b09a]">Need help? Open the support chat at the bottom right.</p>
               <p className="text-xs text-[#6f6758]">CrownTree does not guarantee income. Read the compliance statement before joining.</p>
             </div>
           </div>

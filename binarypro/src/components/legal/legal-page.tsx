@@ -39,7 +39,7 @@ export function LegalPage({ title, intro, sections, current }: { title: string; 
             </section>
           ))}
           <footer className="border-t border-white/10 pt-6 text-sm text-[#8f8672]">
-            Questions about these policies? Contact us at [support email]. Grievance Officer: [name, address, email, phone] (as required under the Information Technology Act, 2000 and the Consumer Protection (E-Commerce) Rules, 2020).
+            Questions about these policies? Use the support chat at the bottom right of any page.
           </footer>
         </article>
       </main>

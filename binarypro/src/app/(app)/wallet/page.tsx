@@ -56,11 +56,11 @@ export default async function Wallet() {
         </section>
         <section className="min-w-0 rounded-3xl border border-white/5 bg-white/[0.03] p-6">
           <h2 className="mb-1 text-lg font-bold">Withdraw</h2>
-          <p className="mb-4 text-sm text-[#8f8672]">{kycOk ? 'Paid to your bank account after finance review.' : 'Identity verification is required before withdrawing.'}</p>
+          <p className="mb-4 text-sm text-[#8f8672]">{kycOk ? 'Paid to your bank account after finance review.' : user.kyc === 'PENDING' ? 'Your identity documents are under review.' : 'Identity verification is required before withdrawing.'}</p>
           {kycOk ? (
             <WithdrawForm currencies={[...CURRENCIES]} />
           ) : (
-            <Notice tone="warn">Complete identity verification to enable withdrawals. Minimum INR {formatMoney(MIN_WITHDRAWAL.INR, 'INR')}. Available INR: {formatMoney(total, 'INR')}.</Notice>
+            <Notice tone="warn">{user.kyc === 'PENDING' ? 'Your identity documents are under review. Withdrawals unlock once approved.' : user.kyc === 'REJECTED' ? 'Your identity check was not approved. Contact support to resubmit your documents.' : 'Complete identity verification to enable withdrawals.'} Minimum INR {formatMoney(MIN_WITHDRAWAL.INR, 'INR')}. Available INR: {formatMoney(total, 'INR')}.</Notice>
           )}
           {withdrawals.length > 0 && (
             <table className="table mt-5 w-full text-sm">

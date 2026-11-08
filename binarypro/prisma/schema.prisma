@@ -145,6 +145,12 @@ model User {
   sessionVersion    Int        @default(0)
   // Set for MERCHANT staff: the merchant whose orders this user may deliver.
   merchantId        String?
+  // Shareable referral number members give to new sign-ups (sponsor lookup).
+  referralCode      String?    @unique
+  kycSubmittedAt    DateTime?
+  kycReviewedAt     DateTime?
+  kycReviewedBy     String?
+  kycNote           String?
   createdAt         DateTime   @default(now())
 
   // Sponsorship (who referred this member; drives direct commission)
@@ -159,6 +165,8 @@ model User {
   side     Side?
 
   membership      Membership?
+  kycDocuments    KycDocument[]
+  bankAccount     BankAccount?
   orders          Order[]          @relation("BuyerOrders")
   commissions     Commission[]
   withdrawals     Withdrawal[]
@@ -560,4 +568,37 @@ model MilestoneAward {
 
   @@unique([userId, ruleId])
   @@index([status])
+}
+
+enum KycDocKind {
+  AADHAAR
+  PAN
+}
+
+// Identity document images. Stored encrypted (AES-256-GCM); only the ciphertext is kept in the database.
+model KycDocument {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id])
+  kind       KycDocKind
+  mime       String
+  sizeBytes  Int
+  sha256     String
+  ciphertext Bytes
+  uploadedAt DateTime   @default(now())
+
+  @@unique([userId, kind])
+}
+
+// Payout account. The full account number is encrypted; only the last four digits are kept in clear.
+model BankAccount {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  accountHolder String
+  bankName      String
+  ifsc          String
+  accountLast4  String
+  accountCipher Bytes
+  createdAt     DateTime @default(now())
 }

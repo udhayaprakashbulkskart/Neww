@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { RegisterForm } from './signup-form';
 
 type ApiResult<T = unknown> = { ok: true; data: T } | { ok: false; message: string };
 
@@ -39,7 +40,6 @@ function useBusy() {
 export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initialMode?: 'signin' | 'register' }) {
   const router = useRouter();
   const [mode, setMode] = useState<'signin' | 'register'>(initialMode);
-  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { busy, setBusy, msg, setMsg } = useBusy();
@@ -47,16 +47,14 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setMsg(null);
-    const r = mode === 'signin'
-      ? await call('/api/auth/login', 'POST', { email, password })
-      : await call('/api/auth/register', 'POST', { name, email, password, ref: ref ?? null });
+    const r = await call('/api/auth/login', 'POST', { email, password });
     setBusy(false);
     if (r.ok) router.push('/dashboard');
     else setMsg({ kind: 'err', text: r.message });
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5">
+    <div className="space-y-5">
       <div className="grid grid-cols-2 gap-1 rounded-2xl bg-black/60 p-1 text-sm ring-1 ring-white/5">
         {(['signin', 'register'] as const).map((m) => (
           <button key={m} type="button" onClick={() => { setMode(m); setMsg(null); }}
@@ -65,24 +63,23 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
           </button>
         ))}
       </div>
-      {mode === 'register' && (
-        <div>
-          <label className="label" htmlFor="name">Full name</label>
-          <input id="name" className="input mt-2" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required autoComplete="name" />
-        </div>
+      {mode === 'register' ? (
+        <RegisterForm ref={ref} />
+      ) : (
+        <form onSubmit={submit} className="space-y-5">
+          <div>
+            <label className="label" htmlFor="email">Email</label>
+            <input id="email" type="email" className="input mt-2" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+          </div>
+          <div>
+            <label className="label" htmlFor="password">Password</label>
+            <input id="password" type="password" className="input mt-2" value={password} onChange={(e) => setPassword(e.target.value)} required maxLength={128} autoComplete="current-password" />
+          </div>
+          <button className="btn btn-brand w-full py-3.5" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</button>
+          {msg && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{msg.text}</div>}
+        </form>
       )}
-      <div>
-        <label className="label" htmlFor="email">Email</label>
-        <input id="email" type="email" className="input mt-2" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-      </div>
-      <div>
-        <label className="label" htmlFor="password">Password</label>
-        <input id="password" type="password" className="input mt-2" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={mode === 'register' ? 10 : 1} maxLength={128} autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} />
-        {mode === 'register' && <p className="mt-1 text-xs text-[#8f8672]">At least 10 characters, with a letter and a number.</p>}
-      </div>
-      <button className="btn btn-brand w-full py-3.5" disabled={busy}>{busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}</button>
-      {msg && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{msg.text}</div>}
-    </form>
+    </div>
   );
 }
 

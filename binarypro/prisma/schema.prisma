@@ -58,6 +58,7 @@ enum Rank {
 enum UserStatus {
   ACTIVE
   SUSPENDED
+  DELETED // self-deleted: personal data removed, financial records kept
 }
 
 enum KycStatus {

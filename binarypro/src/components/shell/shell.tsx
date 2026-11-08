@@ -31,7 +31,7 @@ export function AppShell({ children, items, userName, rank, isStaff }: {
               <div className="text-xs text-[#f7e09a]">{rank}</div>
             </div>
           </div>
-          <div className="mt-3"><LogoutButton /></div>
+          <div className="mt-3 flex flex-col gap-2"><Link href="/account" className="text-xs font-semibold text-[#f7e09a] hover:text-white">Account and delete account</Link><LogoutButton /></div>
         </div>
       </aside>
 
@@ -39,7 +39,11 @@ export function AppShell({ children, items, userName, rank, isStaff }: {
         {/* Mobile top bar */}
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/5 bg-black/85 px-4 py-3 backdrop-blur lg:hidden">
           <Link href="/dashboard"><Logo /></Link>
-          <div className="text-xs text-[#f7e09a]">{rank}</div>
+          <div className="flex items-center gap-3">
+            <Link href="/account" className="text-xs font-semibold text-[#f7e09a]">Account</Link>
+            <span className="text-xs text-[#f7e09a]">{rank}</span>
+            <LogoutButton />
+          </div>
         </header>
         <div className="hidden items-center justify-between border-b border-white/5 bg-black/60 px-10 py-4 lg:flex">
           <div className="text-sm text-[#8f8672]">Welcome back, <span className="font-semibold text-white">{userName}</span></div>

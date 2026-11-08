@@ -6,10 +6,11 @@ import { NetworkArt } from '@/components/brand-art';
 
 export const dynamic = 'force-dynamic';
 
-export default async function LoginPage({ searchParams }: { searchParams: { ref?: string; mode?: string } }) {
+export default async function LoginPage({ searchParams }: { searchParams: { ref?: string; mode?: string; register?: string; deleted?: string } }) {
   if (await currentUser()) redirect('/dashboard');
   const ref = typeof searchParams.ref === 'string' && /^[a-z0-9]{10,64}$/i.test(searchParams.ref) ? searchParams.ref : undefined;
-  const register = !!ref || searchParams.mode === 'register';
+  const register = !!ref || searchParams.mode === 'register' || searchParams.register === '1';
+  const deleted = searchParams.deleted === '1';
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <aside className="relative isolate hidden overflow-hidden border-r border-white/5 bg-[radial-gradient(circle_at_20%_10%,rgba(255,106,0,.28),transparent_45%),radial-gradient(circle_at_80%_90%,rgba(212,175,55,.22),transparent_50%),#000] p-12 lg:flex lg:flex-col lg:justify-between">
@@ -36,6 +37,7 @@ export default async function LoginPage({ searchParams }: { searchParams: { ref?
           <div className="mb-8 lg:hidden"><Logo /></div>
           <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01))] p-7 shadow-[0_30px_80px_rgba(0,0,0,.6)] backdrop-blur md:p-9">
             <h2 className="text-2xl font-extrabold tracking-tight">{register ? (ref ? 'Join your team' : 'Create your account') : 'Welcome back'}</h2>
+            {deleted && <div role="status" className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-[#cfc6b0]">Your account has been deleted.</div>}
             <p className="mt-1 text-sm text-[#8f8672]">{register ? 'Your inviter will see you in their team.' : 'Sign in with your email and password.'}</p>
             <div className="mt-7"><LoginForm ref={ref} initialMode={register ? 'register' : 'signin'} /></div>
           </div>

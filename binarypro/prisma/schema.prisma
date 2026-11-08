@@ -158,15 +158,16 @@ model User {
   children User[]  @relation("Placement")
   side     Side?
 
-  membership  Membership?
-  orders      Order[]      @relation("BuyerOrders")
-  commissions Commission[]
-  withdrawals Withdrawal[]
-  adViews     AdView[]
-  campaigns   AdCampaign[]
-  partnerClicks PartnerClick[]
-  otpCodes    OtpCode[]
-  pvLegs      PvLeg[]
+  membership      Membership?
+  orders          Order[]          @relation("BuyerOrders")
+  commissions     Commission[]
+  withdrawals     Withdrawal[]
+  adViews         AdView[]
+  campaigns       AdCampaign[]
+  partnerClicks   PartnerClick[]
+  milestoneAwards MilestoneAward[]
+  otpCodes        OtpCode[]
+  pvLegs          PvLeg[]
 
   // Exactly one member may occupy each binary slot.
   @@unique([parentId, side])
@@ -457,7 +458,7 @@ model AuditLog {
 
 // Partner offers: outbound links only. No cashback is paid on partner purchases.
 model PartnerOffer {
-  id            String   @id @default(cuid())
+  id            String         @id @default(cuid())
   partnerName   String
   title         String
   category      String
@@ -467,10 +468,10 @@ model PartnerOffer {
   offerUrl      String
   minTier       Tier
   validUntil    DateTime
-  active        Boolean  @default(true)
+  active        Boolean        @default(true)
   approvedBy    String
   approvalRef   String
-  createdAt     DateTime @default(now())
+  createdAt     DateTime       @default(now())
   clicks        PartnerClick[]
 
   @@index([active, validUntil])
@@ -502,4 +503,61 @@ model MembershipPlan {
   active           Boolean  @default(true)
   updatedAt        DateTime @updatedAt
   updatedBy        String?
+}
+
+// Retail milestone programme. Counts a member's own verified retail sales only (never team or
+// recruitment volume). Awards are prizes (goods), not cash, so they post nothing to the ledger.
+enum MilestoneStatus {
+  QUALIFIED
+  APPROVED
+  REJECTED
+  FULFILLED
+}
+
+model MilestoneRule {
+  id             String           @id
+  name           String
+  thresholdMinor BigInt // INR minor units of personal verified retail sales
+  startsAt       DateTime
+  endsAt         DateTime?
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  updatedBy      String?
+  awards         MilestoneAward[]
+}
+
+model Prize {
+  id           String           @id
+  name         String
+  model        String
+  imageUrl     String
+  description  String
+  details      String[]
+  supplierNote String
+  active       Boolean          @default(true)
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime
+  awards       MilestoneAward[]
+}
+
+model MilestoneAward {
+  id           String          @id @default(cuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id])
+  ruleId       String
+  rule         MilestoneRule   @relation(fields: [ruleId], references: [id])
+  status       MilestoneStatus @default(QUALIFIED)
+  metricMinor  BigInt // personal verified retail sales (INR) when the milestone was reached
+  qualifiedAt  DateTime        @default(now())
+  prizeId      String?
+  prize        Prize?          @relation(fields: [prizeId], references: [id])
+  decidedAt    DateTime?
+  decidedBy    String?
+  decisionNote String?
+  fulfilledAt  DateTime?
+
+  @@unique([userId, ruleId])
+  @@index([status])
 }

@@ -13,7 +13,7 @@ import { MembershipPicker } from '@/components/client';
 import { CopyButton } from '@/components/copy-button';
 import { Money, Disclaimer } from '@/components/ui';
 import { Icon } from '@/components/shell/icons';
-import { PRIZES } from '@/lib/domain/prizes';
+import { memberMilestone, loadPrizes } from '@/lib/server/milestones';
 import { TreeView } from '@/components/tree-view';
 
 export const dynamic = 'force-dynamic';
@@ -62,6 +62,7 @@ export default async function Dashboard() {
     Promise.all(TIERS.map(async (t) => ({ tier: t, price: formatMoney(await membershipPrice(t, 'INR'), 'INR') }))),
     buildTree(user.id, user.id, 2),
   ]);
+  const [milestone, prizes] = await Promise.all([memberMilestone(user.id), loadPrizes()]);
   const legTotal = d.legs.left + d.legs.right;
   const leftPct = legTotal === 0n ? 50 : Number((d.legs.left * 100n) / legTotal);
   const held = (Object.keys(wallets) as Currency[]).filter((c) => wallets[c] > 0n);
@@ -179,39 +180,55 @@ export default async function Dashboard() {
       </Card>
 
       <section className="rounded-3xl border border-[#d4af37]/25 bg-[linear-gradient(160deg,#1d1606,#070707)] p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold">Retail milestone: ₹50,000</h2>
-            <p className="mt-1 max-w-xl text-sm text-[#8f8672]">Counts only your own verified retail sales, delivered and past the return window. Team size and recruitment do not count.</p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-black text-[#f7e09a]">{formatMoney(d.personalPvInrMinor, BASE_CURRENCY)}</div>
-            <div className="text-xs text-[#8f8672]">of {formatMoney(5_000_000n, BASE_CURRENCY)}</div>
-          </div>
-        </div>
-        <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#1a1408]">
-          <div className="h-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)]" style={{ width: `${Math.min(100, Number((d.personalPvInrMinor * 100n) / 5_000_000n))}%` }} />
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {PRIZES.map((prize) => (
-            <article key={prize.id} className="flex flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <div className="flex h-40 items-center justify-center bg-white p-3">
-                <img src={prize.image} alt={`${prize.model} (${prize.name.toLowerCase()} prize)`} className="max-h-full max-w-full object-contain" loading="lazy" />
+        {milestone ? (
+          <>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold">{milestone.ruleName}</h2>
+                <p className="mt-1 max-w-xl text-sm text-[#8f8672]">Counts only your own verified retail sales, delivered and past the return window. Team size and recruitment do not count.</p>
               </div>
-              <div className="flex flex-1 flex-col gap-2 p-4">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-[#f7e09a]">{prize.name}</div>
-                <div className="text-base font-bold">{prize.model}</div>
-                <p className="text-xs leading-relaxed text-[#b9b09a]">{prize.description}</p>
-                <ul className="mt-1 space-y-1 text-xs text-[#8f8672]">
-                  {prize.details.map((d) => <li key={d}>• {d}</li>)}
-                </ul>
-                <p className="mt-auto pt-2 text-[11px] text-[#6f6758]">{prize.supplierNote} Awarded only after verification and approval.</p>
+              <div className="text-right">
+                <div className="text-2xl font-black text-[#f7e09a]">{formatMoney(milestone.metricMinor, BASE_CURRENCY)}</div>
+                <div className="text-xs text-[#8f8672]">of {formatMoney(milestone.thresholdMinor, BASE_CURRENCY)}</div>
               </div>
-            </article>
-          ))}
-        </div>
-        <p className="mt-4 text-[11px] text-[#6f6758]">Prize details, eligibility and timing are set in the programme terms, which must be approved before any prize is announced. Prizes are not guaranteed.</p>
+            </div>
+            <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#1a1408]">
+              <div className="h-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)]" style={{ width: `${milestone.percent}%` }} />
+            </div>
+            {milestone.award && (
+              <p className="mt-3 text-sm text-[#f7e09a]">
+                {milestone.award.status === 'QUALIFIED' && 'You have reached this milestone. Our team will confirm your prize.'}
+                {milestone.award.status === 'APPROVED' && `Approved: ${milestone.award.prizeModel ?? 'your prize'} will be arranged with our team.`}
+                {milestone.award.status === 'FULFILLED' && `Prize handed over: ${milestone.award.prizeModel ?? ''}`}
+                {milestone.award.status === 'REJECTED' && 'This milestone was not approved. Contact support if you think this is wrong.'}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-[#8f8672]">There is no active retail milestone right now.</p>
+        )}
+        {prizes.length > 0 && (
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            {prizes.map((prize) => (
+              <article key={prize.id} className="flex flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <div className="flex h-40 items-center justify-center bg-white p-3">
+                  <img src={prize.imageUrl} alt={`${prize.model} (${prize.name.toLowerCase()} prize)`} className="max-h-full max-w-full object-contain" loading="lazy" />
+                </div>
+                <div className="flex flex-1 flex-col gap-2 p-4">
+                  <div className="text-[11px] font-bold uppercase tracking-widest text-[#f7e09a]">{prize.name}</div>
+                  <div className="text-base font-bold">{prize.model}</div>
+                  <p className="text-xs leading-relaxed text-[#b9b09a]">{prize.description}</p>
+                  <ul className="mt-1 space-y-1 text-xs text-[#8f8672]">
+                    {prize.details.map((line) => <li key={line}>• {line}</li>)}
+                  </ul>
+                  <p className="mt-auto pt-2 text-[11px] text-[#6f6758]">{prize.supplierNote} Awarded only after verification and approval.</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+        <p className="mt-4 text-[11px] text-[#6f6758]">Prize details, eligibility and timing are set in the programme terms. Prizes are not guaranteed.</p>
       </section>
 
       <section>

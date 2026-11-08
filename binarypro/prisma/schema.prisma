@@ -167,6 +167,8 @@ model User {
 
   membership      Membership?
   kycDocuments    KycDocument[]
+  spinSpins       SpinSpin[]
+  spinRedemptions SpinRedemption[]
   bankAccount     BankAccount?
   orders          Order[]          @relation("BuyerOrders")
   commissions     Commission[]
@@ -602,4 +604,103 @@ model BankAccount {
   accountLast4  String
   accountCipher Bytes
   createdAt     DateTime @default(now())
+}
+
+// ---------- Spin & Win (separate from the membership payment and MLM commission engines) ----------
+enum SpinRewardKind {
+  BADGE // display-only, granted immediately, no money
+  CASH // money credited to the member's wallet from the reward pool; only when legally activated
+  VOUCHER // non-cash voucher; a redemption request is raised for staff to fulfil
+}
+
+enum SpinOutcome {
+  GRANTED
+  CREDITED
+  REDEMPTION_REQUESTED
+}
+
+enum SpinRedemptionStatus {
+  REQUESTED
+  APPROVED
+  FULFILLED
+  REJECTED
+}
+
+model SpinSettings {
+  id           String   @id
+  enabled      Boolean  @default(true)
+  cooldownDays Int      @default(15)
+  updatedAt    DateTime
+  updatedBy    String?
+}
+
+model SpinReward {
+  id              String         @id
+  name            String
+  description     String
+  kind            SpinRewardKind
+  amountMinor     BigInt         @default(0)
+  active          Boolean        @default(false)
+  // Cash rewards need a documented legal approval and funding source before they can be activated.
+  cashLegalRef    String?
+  cashFundingRef  String?
+  cashActivatedAt DateTime?
+  cashActivatedBy String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime
+  slots           SpinSlot[]
+  spins           SpinSpin[]
+}
+
+// A reward placed on one membership tier's wheel, with its relative weight.
+model SpinSlot {
+  id        String     @id @default(cuid())
+  tier      Tier
+  rewardId  String
+  reward    SpinReward @relation(fields: [rewardId], references: [id])
+  weight    Int
+  active    Boolean    @default(true)
+  sortOrder Int        @default(0)
+
+  @@unique([tier, rewardId])
+}
+
+// Immutable spin log. Protected from UPDATE and DELETE by a database trigger.
+model SpinSpin {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  tier           Tier
+  rewardId       String
+  reward         SpinReward      @relation(fields: [rewardId], references: [id])
+  rewardName     String
+  rewardKind     SpinRewardKind
+  amountMinor    BigInt          @default(0)
+  outcome        SpinOutcome
+  requestKey     String          @unique
+  randomDraw     Int
+  totalWeight    Int
+  nextEligibleAt DateTime
+  createdAt      DateTime        @default(now())
+  redemption     SpinRedemption?
+
+  @@index([userId, createdAt])
+  @@index([rewardId])
+}
+
+model SpinRedemption {
+  id          String               @id @default(cuid())
+  spinId      String               @unique
+  spin        SpinSpin             @relation(fields: [spinId], references: [id])
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id])
+  status      SpinRedemptionStatus @default(REQUESTED)
+  voucherCode String?
+  note        String?
+  handledBy   String?
+  handledAt   DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime
+
+  @@index([status])
 }

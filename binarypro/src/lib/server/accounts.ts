@@ -38,6 +38,10 @@ export const accounts = {
   withdrawalPending: (currency: Currency): AccountSpec => ({
     key: `WITHDRAWAL_PENDING:${currency}`, normal: 'CREDIT', allowNegative: false, currency,
   }),
+  // Spin & Win reward pool. Funded only from a documented external deposit; membership payments never post here.
+  spinPool: (currency: Currency): AccountSpec => ({
+    key: `SPIN_POOL:${currency}`, normal: 'CREDIT', allowNegative: false, currency,
+  }),
   clawbackReceivable: (currency: Currency): AccountSpec => ({
     key: `CLAWBACK_RECEIVABLE:${currency}`, normal: 'DEBIT', allowNegative: true, currency,
   }),

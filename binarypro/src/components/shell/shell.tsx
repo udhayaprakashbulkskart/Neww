@@ -39,10 +39,10 @@ export function AppShell({ children, items, userName, rank, isStaff }: {
         {/* Mobile top bar */}
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-white/5 bg-black/85 px-4 py-3 backdrop-blur lg:hidden">
           <Link href="/dashboard"><Logo /></Link>
-          <div className="flex items-center gap-3">
-            <Link href="/account" className="text-xs font-semibold text-[#f7e09a]">Account</Link>
-            <span className="text-xs text-[#f7e09a]">{rank}</span>
-            <LogoutButton />
+          <div className="flex shrink-0 items-center gap-2.5">
+            <Link href="/account" className="whitespace-nowrap text-xs font-semibold text-[#f7e09a]">Account</Link>
+            <span className="hidden text-xs text-[#f7e09a] min-[400px]:inline">{rank}</span>
+            <LogoutButton compact />
           </div>
         </header>
         <div className="hidden items-center justify-between border-b border-white/5 bg-black/60 px-10 py-4 lg:flex">

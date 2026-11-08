@@ -10,6 +10,7 @@ const ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: 'home' },
   { href: '/ads', label: 'Earn with ads', icon: 'play' },
   { href: '/shop', label: 'Shop', icon: 'bag' },
+  { href: '/spin', label: 'Spin & Win', icon: 'spin' },
   { href: '/tree', label: 'Binary tree', icon: 'tree' },
   { href: '/earnings', label: 'Earnings', icon: 'chart' },
   { href: '/offers', label: 'Partner offers', icon: 'store' },

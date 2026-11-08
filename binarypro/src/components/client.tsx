@@ -83,11 +83,11 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
   );
 }
 
-export function LogoutButton() {
+export function LogoutButton({ compact = false }: { compact?: boolean } = {}) {
   const router = useRouter();
   return (
     <button
-      className="btn btn-ghost px-3 py-2 text-xs"
+      className={compact ? 'btn btn-ghost whitespace-nowrap px-2.5 py-1.5 text-[11px]' : 'btn btn-ghost px-3 py-2 text-xs'}
       onClick={async () => {
         await call('/api/auth/logout', 'POST');
         router.push('/login');

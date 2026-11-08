@@ -24,7 +24,7 @@ export default async function Admin() {
   const canMerchants = can(role, 'merchants:manage');
   const canAds = can(role, 'ads:review');
   const canFraud = can(role, 'fraud:review');
-  if (![canWithdrawals, canOrders, canRun, canFx, canMerchants, canAds, canFraud, can(role, 'users:read'), can(role, 'kyc:review')].some(Boolean)) {
+  if (![canWithdrawals, canOrders, canRun, canFx, canMerchants, canAds, canFraud, can(role, 'users:read'), can(role, 'kyc:review'), can(role, 'spin:manage'), can(role, 'spin:redeem')].some(Boolean)) {
     redirect('/dashboard');
   }
 
@@ -41,12 +41,13 @@ export default async function Admin() {
 
   return (
     <div className="space-y-6">
-      {(can(role, 'finance:read') || can(role, 'audit:read') || can(role, 'milestones:manage') || can(role, 'milestones:decide') || can(role, 'kyc:review')) && (
+      {(can(role, 'finance:read') || can(role, 'audit:read') || can(role, 'milestones:manage') || can(role, 'milestones:decide') || can(role, 'kyc:review') || can(role, 'spin:manage') || can(role, 'spin:redeem')) && (
         <div className="flex flex-wrap gap-3 text-sm">
           {can(role, 'finance:read') && <Link className="btn" href="/admin/finance">Finance reports and reconciliation</Link>}
           {can(role, 'audit:read') && <Link className="btn" href="/admin/audit">Audit log and transactions</Link>}
           {(can(role, 'milestones:manage') || can(role, 'milestones:decide')) && <Link className="btn" href="/admin/milestones">Retail milestones and prizes</Link>}
           {can(role, 'kyc:review') && <Link className="btn" href="/admin/kyc">Identity review</Link>}
+          {(can(role, 'spin:manage') || can(role, 'spin:redeem')) && <Link className="btn" href="/admin/spin">Spin &amp; Win</Link>}
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-3">

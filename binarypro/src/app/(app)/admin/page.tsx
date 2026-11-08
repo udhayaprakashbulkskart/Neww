@@ -41,9 +41,10 @@ export default async function Admin() {
 
   return (
     <div className="space-y-6">
-      {can(role, 'finance:read') && (
+      {(can(role, 'finance:read') || can(role, 'audit:read')) && (
         <div className="flex flex-wrap gap-3 text-sm">
-          <Link className="btn" href="/admin/finance">Finance reports and reconciliation</Link>
+          {can(role, 'finance:read') && <Link className="btn" href="/admin/finance">Finance reports and reconciliation</Link>}
+          {can(role, 'audit:read') && <Link className="btn" href="/admin/audit">Audit log and transactions</Link>}
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-3">

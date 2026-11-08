@@ -3,8 +3,9 @@
 import { minorToDecimal, toCsv, type CsvCell } from '@/lib/domain/finance';
 import { trialBalance, salesReport, commissionReport, withdrawalReport } from './finance';
 import { db, type Tx } from './db';
+import { auditEntries, ledgerHistory, type AuditFilter, type LedgerFilter } from './audit-view';
 
-export const REPORTS = ['sales', 'commissions', 'withdrawals', 'trial'] as const;
+export const REPORTS = ['sales', 'commissions', 'withdrawals', 'trial', 'audit', 'transactions'] as const;
 export type ReportName = (typeof REPORTS)[number];
 
 export interface ExportTable {
@@ -19,8 +20,37 @@ export async function buildTable(
   from: string,
   to: string,
   client: Tx | typeof db = db,
+  filters: { audit?: AuditFilter; ledger?: LedgerFilter } = {},
 ): Promise<ExportTable> {
   const period = `${from} to ${to}`;
+  if (report === 'audit') {
+    const rows = await auditEntries(range, filters.audit ?? {});
+    return {
+      title: `Audit log, ${period}`,
+      headers: ['Time (UTC)', 'Action', 'Actor', 'Target', 'Details'],
+      rows: rows.map((r) => [r.createdAt.toISOString(), r.action, r.actor, r.targetId ?? '', r.meta]),
+    };
+  }
+  if (report === 'transactions') {
+    const rows = await ledgerHistory(range, filters.ledger ?? {});
+    return {
+      title: `Ledger transactions, ${period}`,
+      headers: ['Time (UTC)', 'Transaction ID', 'Reference', 'Type', 'Description', 'Account', 'Currency', 'Direction', 'Amount'],
+      rows: rows.flatMap((t) =>
+        t.legs.map((leg) => [
+          t.createdAt.toISOString(),
+          t.id,
+          t.reference,
+          t.type,
+          t.description,
+          leg.account,
+          leg.currency,
+          leg.direction,
+          minorToDecimal(leg.amountMinor),
+        ]),
+      ),
+    };
+  }
   if (report === 'sales') {
     const rows = await salesReport(range, client);
     return {

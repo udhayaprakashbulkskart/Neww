@@ -4,8 +4,9 @@ import { minorToDecimal, toCsv, type CsvCell } from '@/lib/domain/finance';
 import { trialBalance, salesReport, commissionReport, withdrawalReport } from './finance';
 import { db, type Tx } from './db';
 import { auditEntries, ledgerHistory, type AuditFilter, type LedgerFilter } from './audit-view';
+import { orderTracker } from './order-tracker';
 
-export const REPORTS = ['sales', 'commissions', 'withdrawals', 'trial', 'audit', 'transactions'] as const;
+export const REPORTS = ['sales', 'commissions', 'withdrawals', 'trial', 'audit', 'transactions', 'orders', 'refunds'] as const;
 export type ReportName = (typeof REPORTS)[number];
 
 export interface ExportTable {
@@ -49,6 +50,35 @@ export async function buildTable(
           minorToDecimal(leg.amountMinor),
         ]),
       ),
+    };
+  }
+  if (report === 'orders' || report === 'refunds') {
+    const tracked = await orderTracker(range, new Date(), client);
+    const list = report === 'refunds' ? tracked.rows.filter((r) => r.status === 'RETURNED' || r.status === 'CANCELLED') : tracked.rows;
+    return {
+      title: `${report === 'refunds' ? 'Refunds and cancellations' : 'Order tracking'}, ${period}`,
+      headers: ['Order ID', 'Created (UTC)', 'Status', 'Bucket', 'Merchant', 'Buyer', 'Currency', 'Sales', 'PV (INR)', 'Cashback', 'Delivered', 'Return window ends', 'Verified', 'Returned', 'Refund due', 'Commission eligible', 'Commission posted', 'Commission reversed', 'Withheld reason'],
+      rows: list.map((r) => [
+        r.id,
+        r.createdAt.toISOString(),
+        r.status,
+        r.bucketLabel,
+        r.merchant,
+        r.buyer,
+        r.currency,
+        minorToDecimal(r.subtotalMinor),
+        minorToDecimal(r.pvInrMinor),
+        minorToDecimal(r.cashbackMinor),
+        r.deliveredAt?.toISOString() ?? '',
+        r.returnWindowEndsAt?.toISOString() ?? '',
+        r.verifiedAt?.toISOString() ?? '',
+        r.returnedAt?.toISOString() ?? '',
+        minorToDecimal(r.refundDueMinor),
+        r.commissionEligible ? 'yes' : 'no',
+        minorToDecimal(r.commissionPostedMinor),
+        minorToDecimal(r.commissionReversedMinor),
+        r.commissionBlocked ?? '',
+      ]),
     };
   }
   if (report === 'sales') {

@@ -42,7 +42,10 @@ export default async function FinancePage({ searchParams }: { searchParams: { fr
           <h1 className="text-2xl font-semibold">Finance</h1>
           <p className="text-sm text-[#a39a86]">Reconciliation, reserve, verified sales and commission reports. Read-only.</p>
         </div>
-        <Link href="/admin" className="text-sm underline">Back to admin</Link>
+        <div className="flex gap-4 text-sm">
+          <Link href="/admin/finance/orders" className="underline">Order tracking</Link>
+          <Link href="/admin" className="underline">Back to admin</Link>
+        </div>
       </div>
 
       <Section title="Ledger integrity" subtitle="Across all accounts, total debits must equal total credits in every currency.">

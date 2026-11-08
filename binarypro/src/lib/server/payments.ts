@@ -5,6 +5,7 @@ import type { Currency } from '@/lib/domain/money';
 import { PLANS, type Tier } from '@/lib/domain/plans';
 import { verifySignature } from '@/lib/domain/payments';
 import { activateMembership, isMembershipActive, membershipPrice, parseTier, recordMembershipRevenue } from './membership';
+import { effectivePlan } from './plans';
 import { markOrderPaid } from './orders';
 import { fundCampaignTx } from './ads';
 import { getConfig } from './config';
@@ -23,6 +24,8 @@ export interface CapturedEvent {
 
 export async function startMembershipCheckout(userId: string, tierInput: unknown, currencyInput: unknown) {
   const tier = parseTier(tierInput);
+  const plan = await effectivePlan(tier);
+  if (!plan.active) throw new DomainError('PLAN_UNAVAILABLE', 'This plan is not available right now', 409);
   const user = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { membership: true } });
   const current = user.membership;
   const order = ['BASIC', 'SILVER', 'GOLD', 'PLATINUM'] as Tier[];

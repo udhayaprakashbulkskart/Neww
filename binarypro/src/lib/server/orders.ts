@@ -10,6 +10,7 @@ import { applyBps, convertMinor, BASE_CURRENCY, type Currency } from '@/lib/doma
 import { computeCashback } from '@/lib/domain/cashback';
 import { isSelfPurchase } from '@/lib/domain/fraud';
 import { COMMISSION_FUNDING_BPS, PLANS, type Tier } from '@/lib/domain/plans';
+import { effectivePlan } from './plans';
 import { isMembershipActive } from './membership';
 import { accounts } from './accounts';
 import { addPvUpline, removePvUpline } from './binary';
@@ -85,7 +86,7 @@ export async function createOrder(
       userRedemptions,
       perUserLimit: coupon.perUserLimit,
       poolBalanceMinor: poolBalance,
-      tierMaxPercent: PLANS[(buyer.membership?.tier ?? 'BASIC') as Tier].couponMaxPercent,
+      tierMaxPercent: (await effectivePlan((buyer.membership?.tier ?? 'BASIC') as Tier)).couponMaxPercent,
     });
     if (!result.ok) throw new DomainError('COUPON_INVALID', result.reason, 409);
     couponId = coupon.id;

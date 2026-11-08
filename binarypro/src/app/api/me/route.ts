@@ -2,7 +2,8 @@ import { handle, ok, requireUser } from '@/lib/server/http';
 import { db } from '@/lib/server/db';
 import { walletBalances } from '@/lib/server/wallet';
 import { isMembershipActive } from '@/lib/server/membership';
-import { PLANS, type Tier } from '@/lib/domain/plans';
+import type { Tier } from '@/lib/domain/plans';
+import { effectivePlan } from '@/lib/server/plans';
 import { BASE_CURRENCY } from '@/lib/domain/money';
 
 export const runtime = 'nodejs';
@@ -30,7 +31,7 @@ export async function GET() {
       side: user.side,
       preferredCurrency: user.preferredCurrency,
       referralLink: `/login?ref=${user.id}`,
-      membership: m && { tier, active: isMembershipActive(m), expiresAt: m.expiresAt, plan: PLANS[tier] },
+      membership: m && { tier, active: isMembershipActive(m), expiresAt: m.expiresAt, plan: await effectivePlan(tier) },
       binary: { leftPvInrMinor: legMap.LEFT, rightPvInrMinor: legMap.RIGHT },
       referrals,
       wallets,

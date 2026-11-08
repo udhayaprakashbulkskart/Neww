@@ -1,5 +1,9 @@
 import Link from 'next/link';
 import { PLANS, TIERS } from '@/lib/domain/plans';
+import { loadEffectivePlans } from '@/lib/server/plans';
+import { formatMoney } from '@/lib/domain/money';
+
+export const dynamic = 'force-dynamic';
 import { MembershipCard } from '@/components/membership-card';
 import { PublicHeader } from '@/components/public-header';
 import { NetworkArt } from '@/components/brand-art';
@@ -15,7 +19,8 @@ const STEPS = [
   { n: '03', t: 'Build your team', b: 'Place each new member on your left or right. Commission comes from verified retail sales only.' },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const plans = await loadEffectivePlans();
   return (
     <>
       <PublicHeader />
@@ -91,14 +96,14 @@ export default function Home() {
                 <Reveal key={t} delay={i * 100}><div className={`sheen relative flex h-full flex-col rounded-3xl p-6 transition duration-300 hover:-translate-y-1.5 ${featured ? 'bg-[linear-gradient(170deg,#2a1c05,#0b0b0b_60%)] ring-1 ring-[#d4af37]/60 shadow-[0_0_60px_rgba(212,175,55,.15)]' : 'border border-white/10 bg-white/[0.03] hover:border-[#d4af37]/40'}`}>
                   {featured && <span className="absolute right-5 top-5 rounded-full bg-[linear-gradient(90deg,#ff6a00,#d4af37)] px-3 py-1 text-[11px] font-bold text-black">Most popular</span>}
                   <div className="text-xs font-bold uppercase tracking-[.2em] text-[#f7e09a]">{t}</div>
-                  <div className="mt-4 text-4xl font-black">{PLANS[t].couponMaxPercent}%</div>
+                  <div className="mt-4 text-4xl font-black">{plans[t].couponMaxPercent}%</div>
                   <div className="text-xs text-[#8f8672]">cashback coupons up to</div>
                   <div className="my-6 h-px bg-white/10" />
-                  <div className="text-2xl font-extrabold">{PLANS[t].priceInrMinor === 0n ? 'Free' : `₹${Number(PLANS[t].priceInrMinor / 100n).toLocaleString('en-IN')}`}<span className="text-sm font-medium text-[#8f8672]"> / year</span></div>
+                  <div className="text-2xl font-extrabold">{plans[t].priceInrMinor === 0n ? 'Free' : formatMoney(plans[t].priceInrMinor, 'INR')}<span className="text-sm font-medium text-[#8f8672]"> / year</span></div>
                   <ul className="mt-5 space-y-2.5 text-sm text-[#cfc6b0]">
                     <li className="flex gap-2"><Icon name="arrow" className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />Direct commission {PLANS[t].directBps / 100}% on verified sales</li>
                     <li className="flex gap-2"><Icon name="arrow" className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />{PLANS[t].binaryBps ? `Binary matching ${PLANS[t].binaryBps / 100}%` : 'No binary matching'}</li>
-                    <li className="flex gap-2"><Icon name="arrow" className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />Up to {PLANS[t].adViewsPerDay} ad rewards per day</li>
+                    <li className="flex gap-2"><Icon name="arrow" className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />Up to {plans[t].adViewsPerDay} ad rewards per day</li>
                   </ul>
                 </div></Reveal>
               );

@@ -1,7 +1,8 @@
 // Advertising rewards: viewers are paid only from advertiser-funded campaign pools.
 import { canCompleteView, canStartView } from '@/lib/domain/ads';
 import { isMembershipActive } from './membership';
-import { PLANS, type Tier } from '@/lib/domain/plans';
+import type { Tier } from '@/lib/domain/plans';
+import { effectivePlan } from './plans';
 import { accounts } from './accounts';
 import { audit } from './audit';
 import { db, type Tx } from './db';
@@ -52,7 +53,7 @@ export async function startAdView(userId: string, campaignId: string, now = new 
     poolBalanceMinor: poolBalance,
     rewardMinor: campaign.rewardMinor,
     viewsCompletedToday: viewsToday,
-    adViewsPerDay: PLANS[tier].adViewsPerDay,
+    adViewsPerDay: (await effectivePlan(tier)).adViewsPerDay,
     alreadyViewedTodayThisCampaign: !!existing,
   });
   if (!check.ok) throw new DomainError('AD_UNAVAILABLE', check.reason, 409);

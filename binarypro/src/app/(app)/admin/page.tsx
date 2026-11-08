@@ -4,6 +4,9 @@ import { db } from '@/lib/server/db';
 import { can, type StaffRole } from '@/lib/domain/rbac';
 import { formatMoney, CURRENCIES } from '@/lib/domain/money';
 import { AdminButton, AdminForm } from '@/components/client';
+import { PlanEditor } from '@/components/admin/plan-editor';
+import { loadEffectivePlans } from '@/lib/server/plans';
+import { PLANS, TIERS } from '@/lib/domain/plans';
 import { Section, Money, Notice } from '@/components/ui';
 import { dayKey } from '@/lib/server/time';
 
@@ -42,6 +45,8 @@ export default async function Admin() {
         <div className="panel p-4"><div className="label">Withdrawals awaiting review</div><div className="mt-2 text-2xl font-extrabold">{withdrawals.length}</div></div>
         <div className="panel p-4"><div className="label">Open fraud flags</div><div className="mt-2 text-2xl font-extrabold">{flags.length}</div></div>
       </div>
+
+      {can(role, 'membership:manage') && <MembershipCatalogue />}
 
       {can(role, 'staff:manage') && (
         <Section title="Advertiser accounts" subtitle="Grant the advertiser role to an existing account. The member must create their account first.">
@@ -201,5 +206,32 @@ export default async function Admin() {
         </Section>
       )}
     </div>
+  );
+}
+
+async function MembershipCatalogue() {
+  const plans = await loadEffectivePlans();
+  return (
+    <Section title="Membership packages" subtitle="Edit price, duration, benefits, coupon cap, daily ad limit and availability. Commission rates are fixed and shown for reference.">
+      <div className="grid gap-4 xl:grid-cols-2">
+        {TIERS.map((t) => (
+          <PlanEditor
+            key={t}
+            plan={{
+              tier: t,
+              name: plans[t].name,
+              price: (Number(plans[t].priceInrMinor) / 100).toFixed(2),
+              durationDays: plans[t].durationDays,
+              couponMaxPercent: plans[t].couponMaxPercent,
+              adViewsPerDay: plans[t].adViewsPerDay,
+              benefits: plans[t].benefits.join('\n'),
+              active: plans[t].active,
+              directPercent: PLANS[t].directBps / 100,
+              binaryPercent: PLANS[t].binaryBps / 100,
+            }}
+          />
+        ))}
+      </div>
+    </Section>
   );
 }

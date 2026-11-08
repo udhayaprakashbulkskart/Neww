@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/server/auth';
 import { db } from '@/lib/server/db';
 import { dayKey } from '@/lib/server/time';
-import { PLANS, type Tier } from '@/lib/domain/plans';
+import type { Tier } from '@/lib/domain/plans';
+import { loadEffectivePlans } from '@/lib/server/plans';
 import { formatMoney, type Currency } from '@/lib/domain/money';
 import { AdWatch } from '@/components/client';
 import { Notice } from '@/components/ui';
@@ -27,7 +28,8 @@ export default async function Ads() {
   const done = new Set(watched.map((w) => w.campaignId));
   const earnedToday = watched.reduce((a, w) => a + w.rewardMinor, 0n);
   const tier = (user.membership?.tier ?? 'BASIC') as Tier;
-  const limit = PLANS[tier].adViewsPerDay;
+  const plans = await loadEffectivePlans();
+  const limit = plans[tier].adViewsPerDay;
   const used = watched.length;
   const pct = Math.min(100, Math.round((used / limit) * 100));
   const sorted = [...campaigns].sort((a, b) => Number(done.has(a.id)) - Number(done.has(b.id)));
@@ -48,7 +50,7 @@ export default async function Ads() {
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[.16em] text-[#8f8672]">Earned today</div>
             <div className="mt-2 text-xl font-extrabold">{formatMoney(earnedToday, 'INR')}</div>
-            <div className="mt-1 text-xs text-[#8f8672]">{PLANS[tier].adViewsPerDay} videos a day on {tier}</div>
+            <div className="mt-1 text-xs text-[#8f8672]">{plans[tier].adViewsPerDay} videos a day on {tier}</div>
           </div>
         </div>
       </header>

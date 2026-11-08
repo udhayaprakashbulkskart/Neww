@@ -6,6 +6,7 @@ import { DomainError } from './errors';
 import { accounts } from './accounts';
 import { postTransaction } from './ledger';
 import { loadRates } from './rates';
+import { effectivePlan } from './plans';
 import { addDays } from './time';
 import { audit } from './audit';
 
@@ -20,7 +21,7 @@ export function parseTier(value: unknown): Tier {
 
 /** Price for a tier in the requested currency. Free tiers return 0 in every currency. */
 export async function membershipPrice(tier: Tier, currency: Currency, tx: Tx | typeof db = db): Promise<bigint> {
-  const inr = PLANS[tier].priceInrMinor;
+  const inr = (await effectivePlan(tier, tx)).priceInrMinor;
   if (inr === 0n) return 0n;
   const rates = await loadRates(tx);
   return convertMinor(inr, BASE_CURRENCY, currency, rates);
@@ -30,7 +31,7 @@ export async function membershipPrice(tier: Tier, currency: Currency, tx: Tx | t
 export async function activateMembership(tx: Tx, userId: string, tier: Tier, now = new Date()): Promise<void> {
   const existing = await tx.membership.findUnique({ where: { userId } });
   const base = existing && existing.expiresAt > now ? existing.expiresAt : now;
-  const expiresAt = addDays(base, PLANS[tier].durationDays);
+  const expiresAt = addDays(base, (await effectivePlan(tier, tx)).durationDays);
   if (existing) {
     await tx.membership.update({ where: { userId }, data: { tier, active: true, expiresAt, startedAt: now } });
   } else {

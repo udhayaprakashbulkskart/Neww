@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/server/auth';
 import { db } from '@/lib/server/db';
 import { formatMoney } from '@/lib/domain/money';
-import { PLANS, TIERS, type Tier } from '@/lib/domain/plans';
+import { TIERS, type Tier } from '@/lib/domain/plans';
+import { loadEffectivePlans } from '@/lib/server/plans';
 import { Notice, Money } from '@/components/ui';
 import { ShopGrid } from '@/components/shop-grid';
 import { CouponCards } from '@/components/coupon-cards';
@@ -15,7 +16,8 @@ export default async function Shop({ searchParams }: { searchParams: { m?: strin
   if (!user) redirect('/login');
   const now = new Date();
   const tier = (user.membership?.tier ?? 'BASIC') as Tier;
-  const cap = PLANS[tier].couponMaxPercent;
+  const plans = await loadEffectivePlans();
+  const cap = plans[tier].couponMaxPercent;
   const initialMerchant = typeof searchParams.m === 'string' && /^[a-z0-9]{10,64}$/i.test(searchParams.m) ? searchParams.m : null;
 
   const [products, orders, coupons, redemptions] = await Promise.all([
@@ -45,7 +47,7 @@ export default async function Shop({ searchParams }: { searchParams: { m?: strin
       endsAt: c.endsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
       usesLeft: Math.max(0, c.perUserLimit - (used.get(c.id) ?? 0)),
       locked: c.percent > cap,
-      requiredTier: c.percent > cap ? (TIERS.find((t) => PLANS[t].couponMaxPercent >= c.percent) ?? 'Platinum') : null,
+      requiredTier: c.percent > cap ? (TIERS.find((t) => plans[t].couponMaxPercent >= c.percent) ?? 'Platinum') : null,
       promo: c.funding === 'PROMO',
     }));
 

@@ -5,7 +5,7 @@ import { getConfig } from './config';
 import { db } from './db';
 import { DomainError } from './errors';
 import { hashPassword, verifyPassword, passwordPolicyError } from './password';
-import { PLANS } from '@/lib/domain/plans';
+import { effectivePlan } from './plans';
 import { addDays } from './time';
 
 export const SESSION_COOKIE = 'bp_session';
@@ -34,7 +34,7 @@ export async function registerMember(input: { name: string; email: string; passw
       data: { email, passwordHash, name: input.name.trim() || 'Member', sponsorId: sponsor?.id ?? null },
     });
     await tx.membership.create({
-      data: { userId: user.id, tier: 'BASIC', active: true, expiresAt: addDays(new Date(), PLANS.BASIC.durationDays) },
+      data: { userId: user.id, tier: 'BASIC', active: true, expiresAt: addDays(new Date(), (await effectivePlan('BASIC', tx)).durationDays) },
     });
     return user;
   });

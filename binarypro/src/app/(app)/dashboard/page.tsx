@@ -6,6 +6,7 @@ import { walletBalances } from '@/lib/server/wallet';
 import { buildTree } from '@/lib/server/tree';
 import { membershipPrice } from '@/lib/server/membership';
 import { PLANS, TIERS, type Tier } from '@/lib/domain/plans';
+import { loadEffectivePlans } from '@/lib/server/plans';
 import { formatMoney, BASE_CURRENCY, CURRENCY_META, type Currency } from '@/lib/domain/money';
 import { MembershipCard } from '@/components/membership-card';
 import { MembershipPicker } from '@/components/client';
@@ -54,6 +55,7 @@ export default async function Dashboard() {
   const user = await currentUser();
   if (!user) redirect('/login');
 
+  const plans = await loadEffectivePlans();
   const [d, wallets, prices, preview] = await Promise.all([
     getDashboard(user.id),
     walletBalances(user.id),
@@ -167,7 +169,7 @@ export default async function Dashboard() {
               <div key={t} className={`relative rounded-2xl p-5 text-center ${current ? 'bg-[linear-gradient(160deg,#ff6a00,#d4af37)] text-black' : 'border border-white/10 bg-black/40'}`}>
                 {current && <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-black px-2 py-0.5 text-[10px] font-bold text-[#f7e09a]">Current plan</span>}
                 <div className="text-xs font-bold tracking-widest">{t}</div>
-                <div className="mt-2 text-3xl font-black">{PLANS[t].couponMaxPercent}%</div>
+                <div className="mt-2 text-3xl font-black">{plans[t].couponMaxPercent}%</div>
                 <div className="text-[11px] opacity-80">cashback coupons up to</div>
               </div>
             );

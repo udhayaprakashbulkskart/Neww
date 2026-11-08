@@ -488,3 +488,18 @@ model PartnerClick {
   @@index([offerId])
   @@index([userId])
 }
+
+// Admin-editable membership catalogue. Commission rates and daily payout caps are NOT stored here:
+// they stay in src/lib/domain/plans.ts until the owner approves a change.
+model MembershipPlan {
+  tier             Tier     @id
+  name             String
+  priceInrMinor    BigInt
+  durationDays     Int
+  couponMaxPercent Int
+  adViewsPerDay    Int
+  benefits         String[]
+  active           Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+  updatedBy        String?
+}

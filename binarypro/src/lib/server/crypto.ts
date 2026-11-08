@@ -14,8 +14,11 @@ function encryptionKey(): Buffer {
     key = b;
     return b;
   }
-  // Production refuses to run without a real key; development uses a fixed local-only key.
-  if (getConfig().isProd) throw new Error('KYC_ENCRYPTION_KEY must be set in production');
+  // Any hosted deployment refuses to run without a real key. APP_ENV is not trusted for this check,
+  // because a deployment can be labelled otherwise. Only a plain local run uses the fixed dev key.
+  if (process.env.VERCEL || getConfig().isProd || process.env.NODE_ENV === 'production') {
+    throw new Error('KYC_ENCRYPTION_KEY must be set on every hosted deployment');
+  }
   key = createHash('sha256').update('binarypro-dev-only-kyc-key').digest();
   return key;
 }

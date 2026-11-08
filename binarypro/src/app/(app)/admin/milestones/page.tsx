@@ -64,7 +64,7 @@ export default async function MilestonesPage() {
         subtitle={`Qualified members wait here for a decision. Showing up to 200. Qualified ${counts.QUALIFIED ?? 0} · Approved ${counts.APPROVED ?? 0} · Fulfilled ${counts.FULFILLED ?? 0} · Rejected ${counts.REJECTED ?? 0}`}
         action={canManage ? <EvaluateButton /> : undefined}
       >
-        {awards.length === 0 ? <p className="text-sm text-[#a39a86]">No awards yet. Use “Check for new qualifiers” after verified sales are in.</p> : (
+        {awards.length === 0 ? <p className="text-sm text-[#a39a86]">No awards yet.{canManage ? ' Use “Check for new qualifiers” after verified sales are in.' : ''}</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="text-left text-[#a39a86]">

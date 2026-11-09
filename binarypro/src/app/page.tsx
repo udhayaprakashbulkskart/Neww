@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { PLANS, TIERS } from '@/lib/domain/plans';
 import { loadEffectivePlans } from '@/lib/server/plans';
-import { formatMoney } from '@/lib/domain/money';
+import { LocalPrice } from '@/components/region/region-context';
 
 export const dynamic = 'force-dynamic';
 import { MembershipCard } from '@/components/membership-card';
@@ -99,7 +99,7 @@ export default async function Home() {
                   <div className="mt-4 text-4xl font-black">{plans[t].couponMaxPercent}%</div>
                   <div className="text-xs text-[#8f8672]">cashback coupons up to</div>
                   <div className="my-6 h-px bg-white/10" />
-                  <div className="text-2xl font-extrabold">{plans[t].priceInrMinor === 0n ? 'Free' : formatMoney(plans[t].priceInrMinor, 'INR')}<span className="text-sm font-medium text-[#8f8672]"> / year</span></div>
+                  <div className="text-2xl font-extrabold">{plans[t].priceInrMinor === 0n ? 'Free' : <LocalPrice minor={plans[t].priceInrMinor.toString()} />}<span className="text-sm font-medium text-[#8f8672]"> / year</span></div>
                   <ul className="mt-5 space-y-2.5 text-sm text-[#cfc6b0]">
                     <li className="flex gap-2"><Icon name="arrow" className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />Direct commission {PLANS[t].directBps / 100}% on verified sales</li>
                     <li className="flex gap-2"><Icon name="arrow" className="mt-0.5 h-4 w-4 shrink-0 text-[#d4af37]" />{PLANS[t].binaryBps ? `Binary matching ${PLANS[t].binaryBps / 100}%` : 'No binary matching'}</li>

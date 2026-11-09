@@ -41,13 +41,14 @@ export default async function Admin() {
 
   return (
     <div className="space-y-6">
-      {(can(role, 'finance:read') || can(role, 'audit:read') || can(role, 'milestones:manage') || can(role, 'milestones:decide') || can(role, 'kyc:review') || can(role, 'spin:manage') || can(role, 'spin:redeem') || can(role, 'payments:confirm')) && (
+      {(can(role, 'finance:read') || can(role, 'audit:read') || can(role, 'milestones:manage') || can(role, 'milestones:decide') || can(role, 'kyc:review') || can(role, 'spin:manage') || can(role, 'spin:redeem') || can(role, 'payments:confirm') || can(role, 'engine:read')) && (
         <div className="flex flex-wrap gap-3 text-sm">
           {can(role, 'finance:read') && <Link className="btn" href="/admin/finance">Finance reports and reconciliation</Link>}
           {can(role, 'audit:read') && <Link className="btn" href="/admin/audit">Audit log and transactions</Link>}
           {(can(role, 'milestones:manage') || can(role, 'milestones:decide')) && <Link className="btn" href="/admin/milestones">Retail milestones and prizes</Link>}
           {can(role, 'kyc:review') && <Link className="btn" href="/admin/kyc">Identity review</Link>}
           {can(role, 'payments:confirm') && <Link className="btn" href="/admin/payments">Confirm membership payments</Link>}
+          {(can(role, 'engine:read') || can(role, 'engine:manage')) && <Link className="btn" href="/admin/finance/engine">Financial engine</Link>}
           {(can(role, 'spin:manage') || can(role, 'spin:redeem')) && <Link className="btn" href="/admin/spin">Spin &amp; Win</Link>}
         </div>
       )}

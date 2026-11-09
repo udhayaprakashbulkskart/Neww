@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { currentUser } from '@/lib/server/auth';
 import { db } from '@/lib/server/db';
-import { walletBalances } from '@/lib/server/wallet';
+import { walletBalances, walletSummary } from '@/lib/server/wallet';
 import { CURRENCIES, formatMoney, CURRENCY_META, type Currency } from '@/lib/domain/money';
 import { MIN_WITHDRAWAL } from '@/lib/domain/plans';
 import { ConvertForm, WithdrawForm } from '@/components/client';
@@ -12,8 +12,9 @@ export const dynamic = 'force-dynamic';
 export default async function Wallet() {
   const user = await currentUser();
   if (!user) redirect('/login');
-  const [balances, history, withdrawals] = await Promise.all([
+  const [balances, summary, history, withdrawals] = await Promise.all([
     walletBalances(user.id),
+    walletSummary(user.id),
     db.ledgerEntry.findMany({
       where: { account: { userId: user.id } },
       orderBy: { tx: { createdAt: 'desc' } },
@@ -28,6 +29,13 @@ export default async function Wallet() {
 
   return (
     <div className="space-y-8">
+      <section className="grid gap-3 sm:grid-cols-5">
+        <div className="panel p-4"><div className="label">Available</div><div className="mt-2 text-lg font-bold">{formatMoney(summary.available, 'INR')}</div></div>
+        <div className="panel p-4"><div className="label">Pending</div><div className="mt-2 text-lg font-bold">{formatMoney(summary.pending, 'INR')}</div><div className="text-xs text-[#8f8672]">Released daily, up to your cap</div></div>
+        <div className="panel p-4"><div className="label">Withdrawable</div><div className="mt-2 text-lg font-bold">{formatMoney(summary.withdrawable, 'INR')}</div></div>
+        <div className="panel p-4"><div className="label">Withdrawn</div><div className="mt-2 text-lg font-bold">{formatMoney(summary.withdrawn, 'INR')}</div></div>
+        <div className="panel p-4"><div className="label">Reversed</div><div className="mt-2 text-lg font-bold">{formatMoney(summary.reversed, 'INR')}</div><div className="text-xs text-[#8f8672]">After returns</div></div>
+      </section>
       <header>
         <h1 className="text-3xl font-black tracking-tight">Wallet</h1>
         <p className="mt-1 text-sm text-[#8f8672]">One wallet per currency. Every balance comes from the ledger.</p>

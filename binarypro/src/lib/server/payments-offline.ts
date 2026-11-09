@@ -7,14 +7,24 @@ import { activateMembership, recordMembershipRevenue, parseTier } from './member
 import { parseMinor } from '@/lib/domain/money';
 import type { Currency } from '@/lib/domain/money';
 
+export type ConfirmMethod = 'BANK' | 'CASH';
+
+/**
+ * Confirms a membership payment received offline. A bank transfer is confirmed with its bank reference.
+ * Cash is confirmed with a receipt reference that is stored with a CASH- prefix, so it cannot clash with a bank reference.
+ */
 export async function confirmOfflineMembershipPayment(
   paymentId: string,
-  input: { bankRef: string; amountRupees: string },
+  input: { method?: ConfirmMethod; bankRef: string; amountRupees: string; receivedFrom?: string },
   actorId: string,
   now = new Date(),
 ) {
-  const bankRef = input.bankRef.trim();
-  if (bankRef.length < 6 || bankRef.length > 120) throw new DomainError('VALIDATION', 'Enter the bank reference (at least 6 characters)', 422);
+  const method: ConfirmMethod = input.method ?? 'BANK';
+  const reference = input.bankRef.trim();
+  if (reference.length < 6 || reference.length > 120) {
+    throw new DomainError('VALIDATION', method === 'CASH' ? 'Enter the cash receipt reference (at least 6 characters)' : 'Enter the bank reference (at least 6 characters)', 422);
+  }
+  const bankRef = method === 'CASH' ? `CASH-${reference}` : reference;
   let amount: bigint;
   try {
     amount = parseMinor(input.amountRupees);
@@ -36,7 +46,7 @@ export async function confirmOfflineMembershipPayment(
     await tx.payment.update({ where: { id: payment.id }, data: { status: 'CAPTURED', capturedAt: now, bankRef, confirmedBy: actorId } });
     await recordMembershipRevenue(tx, payment.id, payment.amountMinor, payment.currency as Currency);
     await activateMembership(tx, payment.userId, parseTier(payment.referenceId), now);
-    await audit(tx, { action: 'payment.offline_confirmed', actorId, targetId: payment.id, meta: { bankRef, amount: amount.toString(), userId: payment.userId } });
+    await audit(tx, { action: 'payment.offline_confirmed', actorId, targetId: payment.id, meta: { method, bankRef, amount: amount.toString(), userId: payment.userId, receivedFrom: input.receivedFrom?.trim() || null } });
     return { paymentId: payment.id, userId: payment.userId, tier: payment.referenceId, status: 'CAPTURED' };
   });
 }

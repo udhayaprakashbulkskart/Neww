@@ -60,6 +60,20 @@ describe('offline membership payments', () => {
     expect((await db.payment.findUniqueOrThrow({ where: { id: pb.id } })).status).toBe('PENDING');
   });
 
+  it('confirms cash with a receipt reference, kept apart from bank references', async () => {
+    const admin = await makeUser({ name: 'Owner', role: 'ADMIN' });
+    const member = await makeUser({ name: 'Cash Payer', tier: 'SILVER' });
+    await db.membership.update({ where: { userId: member.id }, data: { tier: 'BASIC' } });
+    const pay = await pendingPayment(member.id);
+    await confirmOfflineMembershipPayment(pay.id, { method: 'CASH', bankRef: 'RCPT-000123', amountRupees: '999', receivedFrom: 'Cash Payer' }, admin.id);
+    const row = await db.payment.findUniqueOrThrow({ where: { id: pay.id } });
+    expect(row.bankRef).toBe('CASH-RCPT-000123');
+    expect((await db.membership.findUniqueOrThrow({ where: { userId: member.id } })).tier).toBe('SILVER');
+    // A bank transfer with the same digits is a different reference and is not refused.
+    const other = await pendingPayment(member.id);
+    await expect(confirmOfflineMembershipPayment(other.id, { bankRef: 'RCPT-000123', amountRupees: '999' }, admin.id)).resolves.toBeDefined();
+  });
+
   it('refuses order payments and short bank references', async () => {
     const admin = await makeUser({ name: 'Finance', role: 'FINANCE' });
     const m = await makeUser({ name: 'M' });

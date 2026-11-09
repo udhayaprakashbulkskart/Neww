@@ -165,21 +165,24 @@ model User {
   children User[]  @relation("Placement")
   side     Side?
 
-  membership      Membership?
-  kycDocuments    KycDocument[]
-  spinSpins       SpinSpin[]
-  spinRedemptions SpinRedemption[]
-  spinClaims      SpinClaim[]
-  bankAccount     BankAccount?
-  orders          Order[]          @relation("BuyerOrders")
-  commissions     Commission[]
-  withdrawals     Withdrawal[]
-  adViews         AdView[]
-  campaigns       AdCampaign[]
-  partnerClicks   PartnerClick[]
-  milestoneAwards MilestoneAward[]
-  otpCodes        OtpCode[]
-  pvLegs          PvLeg[]
+  membership        Membership?
+  kycDocuments      KycDocument[]
+  spinSpins         SpinSpin[]
+  spinRedemptions   SpinRedemption[]
+  spinClaims        SpinClaim[]
+  bankAccount       BankAccount?
+  orders            Order[]                  @relation("BuyerOrders")
+  commissions       Commission[]
+  withdrawals       Withdrawal[]
+  adViews           AdView[]
+  campaigns         AdCampaign[]
+  partnerClicks     PartnerClick[]
+  milestoneAwards   MilestoneAward[]
+  otpCodes          OtpCode[]
+  pvLegs            PvLeg[]
+  financeVolume     VolumeEntry[]
+  commissionEntries CommissionEntry[]
+  dailySummaries    DailyCommissionSummary[]
 
   // Exactly one member may occupy each binary slot.
   @@unique([parentId, side])
@@ -281,6 +284,9 @@ model Order {
   items              OrderItem[]
   commissions        Commission[]
   redemptions        CouponRedemption[]
+  refund             Refund?
+  commissionEntries  CommissionEntry[]
+  volumeEntries      VolumeEntry[]
 
   @@index([buyerId])
   @@index([status])
@@ -728,4 +734,145 @@ model SpinClaim {
   updatedAt DateTime
 
   @@index([userId, status])
+}
+
+// ---------- Financial engine (Phase 2) ----------
+
+enum CommissionKind {
+  PRODUCT // verified product sale, capped by policy and by the daily cap
+  SERVICE // verified service sale, capped by policy and by the daily cap
+  DIRECT_SPONSOR // sponsor-linked commission: disabled until legal approval
+  BINARY // team matching commission: disabled until legal approval
+}
+
+enum CommissionEventType {
+  RELEASE // moved from pending to the member's available wallet by a daily settlement
+  REVERSE // reversed after a refund or invalidation
+}
+
+enum VolumeKind {
+  ACCRUE
+  REVERSE
+}
+
+// The daily cap. Null means "not configured": no commission can be released until an administrator sets it.
+model DailyCapSetting {
+  id        String   @id
+  capMinor  BigInt?
+  reason    String?
+  updatedAt DateTime
+  updatedBy String?
+}
+
+// Versioned, immutable commission policy. A new version is created for every change.
+model CommissionPolicy {
+  id               String         @id @default(cuid())
+  kind             CommissionKind
+  version          Int
+  rateBps          Int // maximum commission as basis points of the verified sale value
+  active           Boolean
+  legalApprovalRef String?
+  reason           String
+  createdBy        String?
+  createdAt        DateTime       @default(now())
+
+  @@unique([kind, version])
+}
+
+// Sales catalogue for services. Products stay in the existing Product model.
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  priceMinor  BigInt
+  currency    Currency
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+// One refund per order. Written once, never changed.
+model Refund {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id])
+  amountMinor BigInt
+  currency    Currency
+  reason      String
+  reference   String   @unique
+  actorId     String?
+  createdAt   DateTime @default(now())
+}
+
+// Volume ledger: eligible sales volume per member. Never money, never expires, no left/right attribution.
+model VolumeEntry {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  orderId   String
+  order     Order      @relation(fields: [orderId], references: [id])
+  kind      VolumeKind
+  pvMinor   BigInt
+  dayKey    String
+  createdAt DateTime   @default(now())
+
+  @@unique([orderId, userId, kind])
+  @@index([userId])
+}
+
+// Commission ledger, accrual side: eligible commission earned from a verified sale. Immutable.
+model CommissionEntry {
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id])
+  orderId       String
+  order         Order             @relation(fields: [orderId], references: [id])
+  kind          CommissionKind
+  policyVersion Int
+  amountMinor   BigInt
+  dayKey        String
+  createdAt     DateTime          @default(now())
+  events        CommissionEvent[]
+
+  @@unique([orderId, userId, kind])
+  @@index([userId, dayKey])
+}
+
+// Commission ledger, movement side: releases and reversals against an accrual. Immutable.
+model CommissionEvent {
+  id          String              @id @default(cuid())
+  entryId     String
+  entry       CommissionEntry     @relation(fields: [entryId], references: [id])
+  type        CommissionEventType
+  amountMinor BigInt
+  dayKey      String
+  reference   String              @unique
+  createdAt   DateTime            @default(now())
+
+  @@index([entryId])
+}
+
+// One row per member per business day: the result of the daily cap calculation. Immutable.
+model DailyCommissionSummary {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  dayKey          String
+  eligibleMinor   BigInt
+  carriedInMinor  BigInt
+  payableMinor    BigInt
+  carriedOutMinor BigInt
+  capMinor        BigInt
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, dayKey])
+}
+
+model ReconciliationReport {
+  id        String   @id @default(cuid())
+  status    String // PASS or FAIL
+  findings  Json
+  totals    Json
+  actorId   String?
+  createdAt DateTime @default(now())
 }

@@ -1,7 +1,7 @@
 // Payments: membership and order checkout, and the signed, idempotent capture webhook.
 // Settlement happens ONLY in the webhook (never on the client redirect), using the raw-body signature.
 import { randomUUID } from 'node:crypto';
-import type { Currency } from '@/lib/domain/money';
+import { BASE_CURRENCY, type Currency } from '@/lib/domain/money';
 import { PLANS, type Tier } from '@/lib/domain/plans';
 import { verifySignature } from '@/lib/domain/payments';
 import { activateMembership, isMembershipActive, membershipPrice, parseTier, recordMembershipRevenue } from './membership';
@@ -32,7 +32,11 @@ export async function startMembershipCheckout(userId: string, tierInput: unknown
   if (current && isMembershipActive(current) && order.indexOf(tier) < order.indexOf(current.tier as Tier)) {
     throw new DomainError('DOWNGRADE', 'Downgrades are not available mid-term', 409);
   }
-  const currency = (typeof currencyInput === 'string' ? currencyInput : user.preferredCurrency) as Currency;
+  // Membership is always charged in INR. Display currency never changes what the buyer pays.
+  if (currencyInput !== undefined && currencyInput !== BASE_CURRENCY) {
+    throw new DomainError('CURRENCY_NOT_SUPPORTED', 'Membership is paid in INR', 400);
+  }
+  const currency: Currency = BASE_CURRENCY;
   const price = await membershipPrice(tier, currency);
   if (price === 0n) {
     await db.$transaction((tx) => activateMembership(tx, userId, tier));

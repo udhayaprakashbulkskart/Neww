@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { formatMoney, type Currency } from '@/lib/domain/money';
+import { type DisplayCurrency } from '@/lib/domain/money';
+import { MoneyView } from '@/components/region/region-context';
 
 /** CrowTree logo: crown mark plus wordmark. The mark is a square crop of the brand artwork. */
 export function Logo({ showTagline = true }: { showTagline?: boolean }) {
@@ -15,8 +16,9 @@ export function Logo({ showTagline = true }: { showTagline?: boolean }) {
   );
 }
 
-export function Money({ minor, currency = 'INR' }: { minor: bigint | string | number; currency?: Currency }) {
-  return <span className="kpi">{formatMoney(BigInt(minor), currency)}</span>;
+/** Money in its original currency, with an approximate figure in the visitor's display currency. */
+export function Money({ minor, currency = 'INR' }: { minor: bigint | string | number; currency?: DisplayCurrency }) {
+  return <MoneyView minor={String(minor)} currency={currency} />;
 }
 
 export function Section({ title, subtitle, children, action }: { title: string; subtitle?: string; children: ReactNode; action?: ReactNode }) {

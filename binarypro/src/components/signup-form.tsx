@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { useT } from '@/components/region/region-context';
 
 const field = 'input mt-2';
 
@@ -18,6 +19,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 /** Create-account form: referral, contact, bank account and identity documents. */
 export function RegisterForm({ ref }: { ref?: string }) {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +30,7 @@ export function RegisterForm({ ref }: { ref?: string }) {
     const data = new FormData(form);
     if (ref) data.set('ref', ref);
     if (String(data.get('accountNumber')) !== String(data.get('accountNumberConfirm'))) {
-      setError('The two account numbers do not match');
+      setError(t('auth.accountMismatch'));
       return;
     }
     setBusy(true);
@@ -36,13 +38,13 @@ export function RegisterForm({ ref }: { ref?: string }) {
       const res = await fetch('/api/auth/register', { method: 'POST', body: data, credentials: 'same-origin' });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json?.error?.message ?? `Sign-up failed (${res.status})`);
+        setError(json?.error?.message ?? `${t('auth.signUpFailed')} (${res.status})`);
         return;
       }
       router.push('/dashboard');
       router.refresh();
     } catch {
-      setError('Network error. Check your connection and try again.');
+      setError(t('common.networkError'));
     } finally {
       setBusy(false);
     }
@@ -51,68 +53,68 @@ export function RegisterForm({ ref }: { ref?: string }) {
   return (
     <form onSubmit={submit} className="space-y-5" encType="multipart/form-data">
       <div>
-        <label className="label" htmlFor="referral">Referral number</label>
+        <label className="label" htmlFor="referral">{t('auth.referralLabel')}</label>
         <input id="referral" name="referral" className={`${field} uppercase`} required maxLength={32} placeholder="BP…" autoComplete="off" defaultValue="" />
-        <p className="mt-1 text-xs text-[#8f8672]">The referral number of the member who invited you.</p>
+        <p className="mt-1 text-xs text-[#8f8672]">{t('auth.referralHint')}</p>
       </div>
 
-      <Section title="Your details">
+      <Section title={t('auth.detailsTitle')}>
         <div>
-          <label className="label" htmlFor="name">Full name</label>
+          <label className="label" htmlFor="name">{t('auth.fullName')}</label>
           <input id="name" name="name" className={field} required minLength={2} maxLength={80} autoComplete="name" />
         </div>
         <div>
-          <label className="label" htmlFor="phone">Mobile number</label>
-          <input id="phone" name="phone" type="tel" inputMode="tel" className={field} required maxLength={20} placeholder="10-digit mobile number" autoComplete="tel-national" />
+          <label className="label" htmlFor="phone">{t('auth.mobile')}</label>
+          <input id="phone" name="phone" type="tel" inputMode="tel" className={field} required maxLength={20} placeholder={t('auth.mobilePlaceholder')} autoComplete="tel-national" />
         </div>
         <div>
-          <label className="label" htmlFor="email">Email</label>
+          <label className="label" htmlFor="email">{t('auth.emailLabel')}</label>
           <input id="email" name="email" type="email" className={field} required autoComplete="email" />
         </div>
         <div>
-          <label className="label" htmlFor="password">Password</label>
+          <label className="label" htmlFor="password">{t('auth.passwordLabel')}</label>
           <input id="password" name="password" type="password" className={field} required minLength={10} maxLength={128} autoComplete="new-password" />
-          <p className="mt-1 text-xs text-[#8f8672]">At least 10 characters, with a letter and a number.</p>
+          <p className="mt-1 text-xs text-[#8f8672]">{t('auth.passwordHint')}</p>
         </div>
       </Section>
 
-      <Section title="Bank account for payouts" subtitle="Withdrawals are paid only to this account, in your own name.">
+      <Section title={t('auth.bankTitle')} subtitle={t('auth.bankSubtitle')}>
         <div>
-          <label className="label" htmlFor="accountHolder">Account holder name</label>
+          <label className="label" htmlFor="accountHolder">{t('auth.accountHolder')}</label>
           <input id="accountHolder" name="accountHolder" className={field} required maxLength={120} autoComplete="off" />
         </div>
         <div>
-          <label className="label" htmlFor="bankName">Bank name</label>
+          <label className="label" htmlFor="bankName">{t('auth.bankName')}</label>
           <input id="bankName" name="bankName" className={field} required maxLength={80} autoComplete="off" />
         </div>
         <div>
-          <label className="label" htmlFor="ifsc">IFSC code</label>
+          <label className="label" htmlFor="ifsc">{t('auth.bankCode')}</label>
           <input id="ifsc" name="ifsc" className={`${field} uppercase`} required maxLength={11} placeholder="SBIN0001234" autoComplete="off" />
         </div>
         <div>
-          <label className="label" htmlFor="accountNumber">Account number</label>
+          <label className="label" htmlFor="accountNumber">{t('auth.accountNumber')}</label>
           <input id="accountNumber" name="accountNumber" inputMode="numeric" className={field} required maxLength={30} autoComplete="off" />
         </div>
         <div>
-          <label className="label" htmlFor="accountNumberConfirm">Re-enter account number</label>
+          <label className="label" htmlFor="accountNumberConfirm">{t('auth.accountNumberAgain')}</label>
           <input id="accountNumberConfirm" name="accountNumberConfirm" inputMode="numeric" className={field} required maxLength={30} autoComplete="off" />
         </div>
       </Section>
 
-      <Section title="Identity documents" subtitle="JPG, PNG or PDF, up to 5 MB each. For Aadhaar, upload a masked copy that shows only the last 4 digits.">
+      <Section title={t('auth.identityTitle')} subtitle={t('auth.identitySubtitle')}>
         <div>
-          <label className="label" htmlFor="aadhaar">Aadhaar (masked copy)</label>
+          <label className="label" htmlFor="aadhaar">{t('auth.aadhaar')}</label>
           <input id="aadhaar" name="aadhaar" type="file" accept="image/jpeg,image/png,application/pdf" required className="mt-2 block w-full text-sm text-[#cfc6b0] file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white" />
         </div>
         <div>
-          <label className="label" htmlFor="pan">PAN card</label>
+          <label className="label" htmlFor="pan">{t('auth.pan')}</label>
           <input id="pan" name="pan" type="file" accept="image/jpeg,image/png,application/pdf" required className="mt-2 block w-full text-sm text-[#cfc6b0] file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-white" />
         </div>
       </Section>
 
-      <p className="text-xs text-[#8f8672]">Your documents are stored encrypted and used only to verify your identity. Withdrawals unlock once an administrator approves them.</p>
+      <p className="text-xs text-[#8f8672]">{t('auth.documentsNote')}</p>
 
-      <button className="btn btn-brand w-full py-3.5" disabled={busy}>{busy ? 'Creating your account…' : 'Create account'}</button>
+      <button className="btn btn-brand w-full py-3.5" disabled={busy}>{busy ? t('auth.registerPending') : t('auth.createAccountButton')}</button>
       {error && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>}
     </form>
   );

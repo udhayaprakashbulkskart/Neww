@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const body = await readJson(req, Body);
     const rateE8 = toRateE8(body.inrPerUnit);
     await db.$transaction(async (tx) => {
-      await tx.fxRate.upsert({ where: { currency: body.currency }, create: { currency: body.currency, rateE8 }, update: { rateE8 } });
+      await tx.fxRate.upsert({ where: { currency: body.currency }, create: { currency: body.currency, rateE8, source: 'MANUAL', fetchedAt: null }, update: { rateE8, source: 'MANUAL', fetchedAt: null, updatedAt: new Date() } });
       await audit(tx, { action: 'fx.rate_set', actorId: user.id, targetId: body.currency, meta: { rateE8: rateE8.toString() } });
     });
     return ok({ currency: body.currency, rateE8 });

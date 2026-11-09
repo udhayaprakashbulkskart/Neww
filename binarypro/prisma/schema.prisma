@@ -142,6 +142,12 @@ model User {
   kyc               KycStatus  @default(NOT_SUBMITTED)
   country           String     @default("IN")
   preferredCurrency Currency   @default(INR)
+  // Language code (for example en, ar, de, fr, ja). Set by the user or from the country default.
+  language          String     @default("en")
+  // True once the user chooses country, language or currency. Automatic detection never overrides it.
+  regionChosen      Boolean    @default(false)
+  // Display currency chosen by the user (may be display-only, such as JPY). Null means follow the country.
+  displayCurrency   String?
   rank              Rank       @default(MEMBER)
   sessionVersion    Int        @default(0)
   // Set for MERCHANT staff: the merchant whose orders this user may deliver.
@@ -449,7 +455,11 @@ model AdView {
 
 model FxRate {
   id        String   @id @default(cuid())
-  currency  Currency @unique
+  // Transaction currencies and display-only currencies (for example JPY). Text so display-only codes need no enum change.
+  currency  String   @unique
+  // MANUAL (admin entered) or LIVE (fetched from the rate provider).
+  source    String   @default("MANUAL")
+  fetchedAt DateTime?
   // INR minor units per 1 whole unit of currency, scaled by 1e8 (INR itself = 1e8).
   rateE8    BigInt
   updatedAt DateTime @default(now())
@@ -875,4 +885,24 @@ model ReconciliationReport {
   totals    Json
   actorId   String?
   createdAt DateTime @default(now())
+}
+
+/// Platform-wide settings (JSON), for example enabled countries and display defaults. Admin only.
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @default(now())
+}
+
+/// Admin translation overrides. The shipped dictionaries are complete; overrides refine wording.
+model TranslationOverride {
+  id        String   @id @default(cuid())
+  locale    String
+  key       String
+  value     String
+  updatedBy String?
+  updatedAt DateTime @default(now())
+
+  @@unique([locale, key])
 }

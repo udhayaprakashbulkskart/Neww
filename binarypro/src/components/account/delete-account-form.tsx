@@ -2,9 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { useT } from '@/components/region/region-context';
 
 export function DeleteAccountForm() {
   const router = useRouter();
+  const t = useT();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
@@ -23,13 +25,13 @@ export function DeleteAccountForm() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json?.error?.message ?? `Could not delete the account (${res.status})`);
+        setError(json?.error?.message ?? `${t('auth.signUpFailed')} (${res.status})`);
         return;
       }
       router.push('/login?deleted=1');
       router.refresh();
     } catch {
-      setError('Network error. Try again.');
+      setError(t('common.networkError'));
     } finally {
       setBusy(false);
     }
@@ -38,14 +40,14 @@ export function DeleteAccountForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        <label className="label" htmlFor="delete-password">Your password</label>
+        <label className="label" htmlFor="delete-password">{t('account.yourPassword')}</label>
         <input id="delete-password" type="password" className="input mt-2" value={password} onChange={(e) => setPassword(e.target.value)} required maxLength={128} autoComplete="current-password" />
       </div>
       <div>
-        <label className="label" htmlFor="delete-confirm">Type DELETE to confirm</label>
+        <label className="label" htmlFor="delete-confirm">{t('account.typeDelete')}</label>
         <input id="delete-confirm" className="input mt-2" value={confirm} onChange={(e) => setConfirm(e.target.value)} required pattern="DELETE" autoComplete="off" />
       </div>
-      <button className="btn btn-danger w-full py-3" disabled={busy || confirm !== 'DELETE' || !password}>{busy ? 'Deleting…' : 'Delete my account'}</button>
+      <button className="btn btn-danger w-full py-3" disabled={busy || confirm !== 'DELETE' || !password}>{busy ? t('account.deleting') : t('account.deleteButton')}</button>
       {error && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>}
     </form>
   );

@@ -1,4 +1,6 @@
 import type { Tier } from '@/lib/domain/plans';
+import type { Translator } from '@/lib/i18n/messages';
+import type { Locale } from '@/lib/i18n/locales';
 
 // Each tier sets its background and text colour together, so labels always contrast with the card.
 const THEME: Record<Tier, { bg: string; ring: string; label: string; ink: string; sub: string; chip: string }> = {
@@ -36,24 +38,24 @@ const THEME: Record<Tier, { bg: string; ring: string; label: string; ink: string
   },
 };
 
-export function MembershipCard({ tier, name, active, expires }: { tier: Tier; name: string; active: boolean; expires?: Date | null }) {
-  const t = THEME[tier];
+export function MembershipCard({ tier, name, active, expires, t: tr, locale }: { tier: Tier; name: string; active: boolean; expires?: Date | null; t: Translator; locale: Locale }) {
+  const theme = THEME[tier];
   return (
     <div
       className="relative aspect-[1.7/1] w-full max-w-md overflow-hidden rounded-2xl p-5 shadow-2xl sm:p-6"
-      style={{ background: t.bg, color: t.ink, boxShadow: `0 20px 60px rgba(0,0,0,.7), inset 0 0 0 1px ${t.ring}66` }}
+      style={{ background: theme.bg, color: theme.ink, boxShadow: `0 20px 60px rgba(0,0,0,.7), inset 0 0 0 1px ${theme.ring}66` }}
     >
       <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" aria-hidden="true" />
       <div className="relative flex items-start justify-between">
-        <div className="text-sm font-extrabold tracking-widest" style={{ color: t.ink }}>CROWNTREE</div>
-        <div className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${t.chip}`}>
-          {active ? t.label : 'Inactive'}
+        <div className="text-sm font-extrabold tracking-widest" style={{ color: theme.ink }}>CROWNTREE</div>
+        <div className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${theme.chip}`}>
+          {active ? tr(`tier.${tier}` as 'tier.BASIC') : tr('card.inactive')}
         </div>
       </div>
       <div className="absolute bottom-5 left-5 right-5">
-        <div className="text-xs uppercase tracking-[.25em]" style={{ color: t.sub }}>Member</div>
-        <div className="mt-1 truncate text-xl font-bold drop-shadow" style={{ color: t.ink }}>{name}</div>
-        <div className="mt-2 text-xs" style={{ color: t.sub }}>{expires ? `Valid until ${expires.toLocaleDateString('en-IN')}` : 'Membership'}</div>
+        <div className="text-xs uppercase tracking-[.25em]" style={{ color: theme.sub }}>{tr('card.member')}</div>
+        <div className="mt-1 truncate text-xl font-bold drop-shadow" style={{ color: theme.ink }}>{name}</div>
+        <div className="mt-2 text-xs" style={{ color: theme.sub }}>{expires ? tr('card.validUntil', { date: expires.toLocaleDateString(locale === 'ar' ? 'ar-u-nu-latn' : locale) }) : tr('card.membership')}</div>
       </div>
     </div>
   );

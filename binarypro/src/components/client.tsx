@@ -3,6 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { RegisterForm } from './signup-form';
+import { useRegion, useT } from '@/components/region/region-context';
+import { formatMoney } from '@/lib/domain/money';
+import { numberLocale } from '@/lib/i18n/locales';
 
 type ApiResult<T = unknown> = { ok: true; data: T } | { ok: false; message: string };
 
@@ -39,6 +42,7 @@ function useBusy() {
 // ---------- Sign in and create account (email and password) ----------
 export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initialMode?: 'signin' | 'register' }) {
   const router = useRouter();
+  const t = useT();
   const [mode, setMode] = useState<'signin' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,7 +63,7 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
         {(['signin', 'register'] as const).map((m) => (
           <button key={m} type="button" onClick={() => { setMode(m); setMsg(null); }}
             className={`rounded-xl py-2.5 font-semibold transition ${mode === m ? 'bg-[linear-gradient(135deg,#ff6a00,#d4af37)] text-black shadow-[0_6px_20px_rgba(255,106,0,.3)]' : 'text-[#a39a86] hover:text-white'}`}>
-            {m === 'signin' ? 'Sign in' : 'Create account'}
+            {m === 'signin' ? t('common.signIn') : t('auth.createTab')}
           </button>
         ))}
       </div>
@@ -68,14 +72,14 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
       ) : (
         <form onSubmit={submit} className="space-y-5">
           <div>
-            <label className="label" htmlFor="email">Email</label>
+            <label className="label" htmlFor="email">{t('auth.emailLabel')}</label>
             <input id="email" type="email" className="input mt-2" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
           </div>
           <div>
-            <label className="label" htmlFor="password">Password</label>
+            <label className="label" htmlFor="password">{t('auth.passwordLabel')}</label>
             <input id="password" type="password" className="input mt-2" value={password} onChange={(e) => setPassword(e.target.value)} required maxLength={128} autoComplete="current-password" />
           </div>
-          <button className="btn btn-brand w-full py-3.5" disabled={busy}>{busy ? 'Please wait…' : 'Sign in'}</button>
+          <button className="btn btn-brand w-full py-3.5" disabled={busy}>{busy ? t('auth.pleaseWait') : t('common.signIn')}</button>
           {msg && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{msg.text}</div>}
         </form>
       )}
@@ -85,6 +89,7 @@ export function LoginForm({ ref, initialMode = 'signin' }: { ref?: string; initi
 
 export function LogoutButton({ compact = false }: { compact?: boolean } = {}) {
   const router = useRouter();
+  const t = useT();
   return (
     <button
       className={compact ? 'btn btn-ghost whitespace-nowrap px-2.5 py-1.5 text-[11px]' : 'btn btn-ghost px-3 py-2 text-xs'}
@@ -94,7 +99,7 @@ export function LogoutButton({ compact = false }: { compact?: boolean } = {}) {
         router.refresh();
       }}
     >
-      Sign out
+      {t('common.signOut')}
     </button>
   );
 }
@@ -102,6 +107,7 @@ export function LogoutButton({ compact = false }: { compact?: boolean } = {}) {
 // ---------- Membership checkout ----------
 export function MembershipPicker({ currentTier, tiers }: { currentTier: string; tiers: { tier: string; price: string }[] }) {
   const router = useRouter();
+  const { t: tr, locale } = useRegion();
   const { busy, setBusy, msg, setMsg } = useBusy();
   const [pending, setPending] = useState<{ providerRef: string; amount: string } | null>(null);
 
@@ -111,7 +117,7 @@ export function MembershipPicker({ currentTier, tiers }: { currentTier: string; 
     setBusy(false);
     if (!r.ok) return setMsg({ kind: 'err', text: r.message });
     if (r.data.activated) {
-      setMsg({ kind: 'ok', text: `${tier} membership activated.` });
+      setMsg({ kind: 'ok', text: tr('membership.activated', { tier }) });
       router.refresh();
     } else if (r.data.providerRef) {
       setPending({ providerRef: r.data.providerRef, amount: r.data.amountMinor ?? '0' });
@@ -125,7 +131,7 @@ export function MembershipPicker({ currentTier, tiers }: { currentTier: string; 
     setBusy(false);
     if (!r.ok) return setMsg({ kind: 'err', text: r.message });
     setPending(null);
-    setMsg({ kind: 'ok', text: 'Payment captured through the signed webhook. Membership updated.' });
+    setMsg({ kind: 'ok', text: tr('membership.captured') });
     router.refresh();
   }
 
@@ -139,16 +145,16 @@ export function MembershipPicker({ currentTier, tiers }: { currentTier: string; 
             disabled={busy || t.tier === currentTier}
             onClick={() => choose(t.tier)}
           >
-            <span>{t.tier === currentTier ? `Current: ${t.tier}` : `Choose ${t.tier}`}</span>
+            <span>{t.tier === currentTier ? tr('membership.currentTier', { tier: tr(`tier.${t.tier}` as 'tier.BASIC') }) : tr('membership.chooseTier', { tier: tr(`tier.${t.tier}` as 'tier.BASIC') })}</span>
             <span className="text-xs font-semibold opacity-80">{t.price}</span>
           </button>
         ))}
       </div>
       {pending && (
         <div className="rounded-xl border border-orange-500/40 bg-orange-500/10 p-4">
-          <p className="text-sm">Payment of {pending.amount} minor units is awaiting capture.</p>
-          <button className="btn btn-brand mt-3" onClick={paySandbox} disabled={busy}>Pay (sandbox)</button>
-          <p className="mt-2 text-xs text-orange-200/80">Sandbox only. Live payments use the configured gateway.</p>
+          <p className="text-sm">{tr('membership.awaiting', { amount: formatMoney(BigInt(pending.amount), 'INR', numberLocale(locale, 'INR')) })}</p>
+          <button className="btn btn-brand mt-3" onClick={paySandbox} disabled={busy}>{tr('membership.paySandbox')}</button>
+          <p className="mt-2 text-xs text-orange-200/80">{tr('membership.sandboxNote')}</p>
         </div>
       )}
       {msg && <Message kind={msg.kind} text={msg.text} />}
@@ -238,6 +244,7 @@ export function ShopItem({ productId, name, price }: { productId: string; name: 
 // ---------- Wallet ----------
 export function ConvertForm({ currencies, balances }: { currencies: string[]; balances: Record<string, string> }) {
   const router = useRouter();
+  const t = useT();
   const { busy, setBusy, msg, setMsg } = useBusy();
   const [from, setFrom] = useState('INR');
   const [to, setTo] = useState('USD');
@@ -248,16 +255,16 @@ export function ConvertForm({ currencies, balances }: { currencies: string[]; ba
     setBusy(true); setMsg(null);
     const r = await call('/api/wallet', 'POST', { from, to, amount });
     setBusy(false);
-    if (r.ok) { setMsg({ kind: 'ok', text: 'Converted. Your new balances are shown above.' }); setAmount(''); router.refresh(); }
+    if (r.ok) { setMsg({ kind: 'ok', text: t('wallet.convertedOk') }); setAmount(''); router.refresh(); }
     else setMsg({ kind: 'err', text: r.message });
   }
 
   return (
     <form onSubmit={submit} className="grid min-w-0 grid-cols-2 gap-3">
-      <div className="min-w-0"><label className="label">From</label><select className="input mt-1.5" value={from} onChange={(e) => setFrom(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
-      <div className="min-w-0"><label className="label">To</label><select className="input mt-1.5" value={to} onChange={(e) => setTo(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
-      <div className="col-span-2"><label className="label">Amount</label><input className="input mt-1.5" placeholder={`Available ${balances[from] ?? '0'}`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-      <button className="btn btn-brand col-span-2 py-3" disabled={busy || from === to}>{busy ? 'Converting…' : 'Convert'}</button>
+      <div className="min-w-0"><label className="label">{t('wallet.from')}</label><select className="input mt-1.5" value={from} onChange={(e) => setFrom(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
+      <div className="min-w-0"><label className="label">{t('wallet.to')}</label><select className="input mt-1.5" value={to} onChange={(e) => setTo(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
+      <div className="col-span-2"><label className="label">{t('wallet.amount')}</label><input className="input mt-1.5" placeholder={t('wallet.availableAmount', { amount: balances[from] ?? '0' })} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
+      <button className="btn btn-brand col-span-2 py-3" disabled={busy || from === to}>{busy ? t('wallet.converting') : t('wallet.convertButton')}</button>
       {msg && <div className="col-span-2"><Message kind={msg.kind} text={msg.text} /></div>}
     </form>
   );
@@ -265,6 +272,7 @@ export function ConvertForm({ currencies, balances }: { currencies: string[]; ba
 
 export function WithdrawForm({ currencies }: { currencies: string[] }) {
   const router = useRouter();
+  const t = useT();
   const { busy, setBusy, msg, setMsg } = useBusy();
   const [currency, setCurrency] = useState('INR');
   const [amount, setAmount] = useState('');
@@ -274,15 +282,15 @@ export function WithdrawForm({ currencies }: { currencies: string[] }) {
     setBusy(true); setMsg(null);
     const r = await call('/api/withdrawals', 'POST', { currency, amount });
     setBusy(false);
-    if (r.ok) { setMsg({ kind: 'ok', text: 'Withdrawal requested. Finance will review it.' }); setAmount(''); router.refresh(); }
+    if (r.ok) { setMsg({ kind: 'ok', text: t('wallet.requestedOk') }); setAmount(''); router.refresh(); }
     else setMsg({ kind: 'err', text: r.message });
   }
 
   return (
     <form onSubmit={submit} className="grid min-w-0 grid-cols-2 gap-3">
-      <div className="min-w-0"><label className="label">Currency</label><select className="input mt-1.5" value={currency} onChange={(e) => setCurrency(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
-      <div className="min-w-0"><label className="label">Amount</label><input className="input mt-1.5" placeholder="0.00" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-      <button className="btn btn-brand col-span-2 py-3">{busy ? 'Submitting…' : 'Request withdrawal'}</button>
+      <div className="min-w-0"><label className="label">{t('wallet.currency')}</label><select className="input mt-1.5" value={currency} onChange={(e) => setCurrency(e.target.value)}>{currencies.map((c) => <option key={c}>{c}</option>)}</select></div>
+      <div className="min-w-0"><label className="label">{t('wallet.amount')}</label><input className="input mt-1.5" placeholder="0.00" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
+      <button className="btn btn-brand col-span-2 py-3">{busy ? t('wallet.submitting') : t('wallet.requestButton')}</button>
       {msg && <div className="col-span-2"><Message kind={msg.kind} text={msg.text} /></div>}
     </form>
   );

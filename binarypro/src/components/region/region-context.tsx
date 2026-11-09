@@ -1,145 +1,198 @@
 'use client';
 
-// Region provider, switcher and local price. Shows INR first and an approximate local price beneath.
-// The visitor's choice is stored in a cookie; otherwise the detected country is used.
+// Client side of the locale and currency system: translator, current preferences, approximate money
+// display, and the preferences form. The server supplies the dictionary and the effective preferences.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { CURRENCY_META, convertMinor, formatMoney, type Currency, BASE_CURRENCY } from '@/lib/domain/money';
-import { REGIONS, currencyForCountry, normalizeCountry, DEFAULT_COUNTRY } from '@/lib/domain/region';
+import { useRouter } from 'next/navigation';
+import { convertMinor, formatMoney, CURRENCY_META, BASE_CURRENCY, type DisplayCurrency } from '@/lib/domain/money';
+import { REGIONS, currencyForCountry, languageForCountry, type RegionPrefs } from '@/lib/domain/region';
+import { LOCALE_NAMES, numberLocale, type Locale } from '@/lib/i18n/locales';
+import { format, type Messages, type MessageKey, type Translator } from '@/lib/i18n/messages';
 
-const OVERRIDE_COOKIE = 'bp_region';
-const GEO_COOKIE = 'bp_geo';
+export interface RegionClientConfig {
+  enabledCountries: string[];
+  enabledLanguages: Locale[];
+  enabledCurrencies: DisplayCurrency[];
+}
 
-type Rates = Record<Currency, bigint>;
+export interface RegionValue {
+  prefs: RegionPrefs;
+  locale: Locale;
+  dir: 'ltr' | 'rtl';
+  messages: Messages;
+  detectedCountry: string;
+  config: RegionClientConfig;
+  signedIn: boolean;
+}
 
-interface RegionState {
-  country: string;
-  detected: string;
-  override: string | null;
-  currency: Currency;
+type Rates = Partial<Record<DisplayCurrency, bigint>>;
+
+interface RegionState extends RegionValue {
+  t: Translator;
   rates: Rates | null;
-  setOverride: (country: string | null) => void;
+  save: (next: { country?: string; language?: string; currency?: string }) => Promise<{ ok: true } | { ok: false; message: string }>;
+  resetAuto: () => Promise<void>;
 }
 
 const RegionContext = createContext<RegionState | null>(null);
 
-function readCookie(name: string): string | null {
-  try {
-    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-    return match ? decodeURIComponent(match[1]) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCookie(name: string, value: string, maxAgeSeconds: number) {
-  try {
-    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=lax`;
-  } catch {
-    // Cookies blocked: the page keeps working with the detected country.
-  }
-}
-
-export function RegionProvider({ children }: { children: ReactNode }) {
-  const [detected, setDetected] = useState(DEFAULT_COUNTRY);
-  const [override, setOverrideState] = useState<string | null>(null);
+export function RegionProvider({ value, children }: { value: RegionValue; children: ReactNode }) {
+  const router = useRouter();
   const [rates, setRates] = useState<Rates | null>(null);
 
   useEffect(() => {
-    setDetected(normalizeCountry(readCookie(GEO_COOKIE)) ?? DEFAULT_COUNTRY);
-    setOverrideState(normalizeCountry(readCookie(OVERRIDE_COOKIE)));
-    fetch('/api/fx')
+    let cancelled = false;
+    fetch('/api/fx', { credentials: 'same-origin' })
       .then((r) => r.json())
       .then((d: { rates: Record<string, string> | null }) => {
-        if (!d.rates) return;
+        if (cancelled || !d.rates) return;
         setRates(Object.fromEntries(Object.entries(d.rates).map(([k, v]) => [k, BigInt(v)])) as Rates);
       })
-      .catch(() => setRates(null));
+      .catch(() => { if (!cancelled) setRates(null); });
+    return () => { cancelled = true; };
   }, []);
 
-  const country = override ?? detected;
-  const currency = currencyForCountry(country);
-
-  useEffect(() => {
-    try {
-      document.documentElement.lang = REGIONS[country]?.lang ?? 'en';
-    } catch {
-      // Ignore: the lang attribute is cosmetic.
-    }
-  }, [country]);
-
-  const value = useMemo<RegionState>(
-    () => ({
-      country,
-      detected,
-      override,
-      currency,
+  const state = useMemo<RegionState>(() => {
+    const t: Translator = (key: MessageKey, vars?: Record<string, string | number>) => format(value.messages[key], vars);
+    return {
+      ...value,
+      t,
       rates,
-      setOverride: (next) => {
-        if (next === null) {
-          writeCookie(OVERRIDE_COOKIE, '', 0);
-        } else {
-          writeCookie(OVERRIDE_COOKIE, next, 60 * 60 * 24 * 365);
+      save: async (next) => {
+        try {
+          const res = await fetch('/api/prefs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(next),
+            credentials: 'same-origin',
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) return { ok: false as const, message: json?.error?.message ?? value.messages['common.networkError'] };
+          router.refresh();
+          return { ok: true as const };
+        } catch {
+          return { ok: false as const, message: value.messages['common.networkError'] };
         }
-        setOverrideState(next);
       },
-    }),
-    [country, detected, override, currency, rates],
-  );
+      resetAuto: async () => {
+        await fetch('/api/prefs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reset: true }),
+          credentials: 'same-origin',
+        }).catch(() => undefined);
+        router.refresh();
+      },
+    };
+  }, [value, rates, router]);
 
-  return <RegionContext.Provider value={value}>{children}</RegionContext.Provider>;
+  return <RegionContext.Provider value={state}>{children}</RegionContext.Provider>;
 }
 
 export function useRegion(): RegionState {
   const ctx = useContext(RegionContext);
-  if (!ctx) {
-    return { country: DEFAULT_COUNTRY, detected: DEFAULT_COUNTRY, override: null, currency: BASE_CURRENCY, rates: null, setOverride: () => {} };
-  }
+  if (!ctx) throw new Error('useRegion must be used inside RegionProvider');
   return ctx;
 }
 
-/** Price in INR, with an approximate local-currency figure when the visitor is outside India. */
-export function LocalPrice({ minor, className }: { minor: string; className?: string }) {
-  const { currency, rates } = useRegion();
-  const inrMinor = BigInt(minor);
-  const inr = formatMoney(inrMinor, BASE_CURRENCY);
-  if (currency === BASE_CURRENCY || !rates) {
-    return <span className={className}>{inr}</span>;
+export function useT(): Translator {
+  return useRegion().t;
+}
+
+/**
+ * Money in its original currency, with an approximate figure in the visitor's display currency.
+ * The original amount is always shown first, so the amount that is charged or stored stays clear.
+ */
+export function MoneyView({ minor, currency, className }: { minor: string; currency: DisplayCurrency; className?: string }) {
+  const { prefs, locale, rates, t } = useRegion();
+  const amount = BigInt(minor);
+  const numLocale = numberLocale(locale, currency);
+  const original = formatMoney(amount, currency, numLocale);
+  const display = prefs.currency;
+  if (!rates || display === currency || !rates[display] || !rates[currency]) {
+    return <span className={className ?? 'kpi'}>{original}</span>;
   }
-  const local = convertMinor(inrMinor, BASE_CURRENCY, currency, rates);
+  const local = convertMinor(amount, currency, display, rates);
   return (
-    <span className={className}>
-      {inr}
+    <span className={className ?? 'kpi'}>
+      {original}
       <span className="mt-0.5 block text-xs font-medium text-[#8f8672]">
-        ≈ {formatMoney(local, currency)} (approximate; you pay in INR)
+        {t('region.approx', { amount: formatMoney(local, display, numberLocale(locale, display)) })} · {t('region.approxNote')}
       </span>
     </span>
   );
 }
 
-/** Footer control: automatic, or a fixed country. Shows the language used on the page. */
-export function RegionSwitcher() {
-  const { country, detected, override, currency, setOverride } = useRegion();
-  const lang = REGIONS[country]?.lang ?? 'en';
+/** Country, language and currency controls. Used on the account page and in the footer. */
+export function PreferencesForm({ compact = false }: { compact?: boolean }) {
+  const { prefs, config, t, save, resetAuto } = useRegion();
+  const [country, setCountry] = useState(prefs.country);
+  const [language, setLanguage] = useState<Locale>(prefs.language);
+  const [currency, setCurrency] = useState<DisplayCurrency>(prefs.currency);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setCountry(prefs.country);
+    setLanguage(prefs.language);
+    setCurrency(prefs.currency);
+  }, [prefs.country, prefs.language, prefs.currency]);
+
+  const field = 'mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-[#e8e0cc]';
+  const label = 'block text-[11px] font-semibold uppercase tracking-[.2em] text-[#f7e09a]';
+
+  async function submit() {
+    setBusy(true);
+    setMsg(null);
+    const r = await save({ country, language, currency });
+    setBusy(false);
+    setMsg(r.ok ? { kind: 'ok', text: t('account.prefsSaved') } : { kind: 'err', text: r.message });
+  }
+
   return (
-    <div className="space-y-2 text-sm">
+    <div className={compact ? 'space-y-3' : 'space-y-4'}>
       <label className="block">
-        <span className="text-[11px] font-semibold uppercase tracking-[.2em] text-[#f7e09a]">Country and currency</span>
-        <select
-          className="mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-[#b9b09a]"
-          value={override ?? 'auto'}
-          onChange={(e) => setOverride(e.target.value === 'auto' ? null : e.target.value)}
-        >
-          <option value="auto">Automatic ({REGIONS[detected]?.name ?? 'India'})</option>
-          {Object.entries(REGIONS).map(([code, r]) => (
-            <option key={code} value={code}>
-              {r.name} ({CURRENCY_META[r.currency].symbol.trim() || r.currency})
-            </option>
+        <span className={label}>{t('account.countryLabel')}</span>
+        <select className={field} value={country} onChange={(e) => {
+          const next = e.target.value;
+          setCountry(next);
+          // Choosing a country also moves the language and currency to that country's defaults.
+          const local = currencyForCountry(next);
+          setCurrency(config.enabledCurrencies.includes(local) ? local : BASE_CURRENCY);
+          const lang = languageForCountry(next);
+          if (config.enabledLanguages.includes(lang)) setLanguage(lang);
+        }}>
+          {config.enabledCountries.map((code) => (
+            <option key={code} value={code}>{REGIONS[code]?.name ?? code}</option>
           ))}
         </select>
       </label>
-      <p className="text-xs text-[#6f6758]">
-        Showing {currency} estimates for {REGIONS[country]?.name ?? 'India'}. Payments are always in INR. Language: English ({lang}).
-      </p>
+      <label className="block">
+        <span className={label}>{t('account.languageLabel')}</span>
+        <select className={field} value={language} onChange={(e) => setLanguage(e.target.value as Locale)}>
+          {config.enabledLanguages.map((code) => (
+            <option key={code} value={code}>{LOCALE_NAMES[code]}</option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <span className={label}>{t('account.currencyLabel')}</span>
+        <select className={field} value={currency} onChange={(e) => setCurrency(e.target.value as DisplayCurrency)}>
+          {config.enabledCurrencies.map((code) => (
+            <option key={code} value={code}>{CURRENCY_META[code].name} ({code})</option>
+          ))}
+        </select>
+      </label>
+      {!compact && <p className="text-xs text-[#8f8672]">{t('account.currencyNote')}</p>}
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" className="btn btn-brand px-4 py-2.5 text-sm" disabled={busy} onClick={submit}>{t('common.save')}</button>
+        <button type="button" className="btn btn-ghost px-4 py-2.5 text-sm" disabled={busy} onClick={async () => { setBusy(true); await resetAuto(); setBusy(false); }}>
+          {t('account.resetAuto')}
+        </button>
+        {msg && <span role="status" className={`text-sm ${msg.kind === 'ok' ? 'text-emerald-300' : 'text-red-300'}`}>{msg.text}</span>}
+      </div>
+      {compact && <p className="text-xs text-[#6f6758]">{t('footer.estimatesNote', { currency: prefs.currency })}</p>}
     </div>
   );
 }
+

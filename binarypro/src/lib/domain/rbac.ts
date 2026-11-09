@@ -16,7 +16,7 @@ export const PERMISSIONS = [
   'kyc:review',
   'spin:manage', 'spin:redeem',
   'payments:confirm',
-  'engine:manage', 'engine:read', 'catalogue:manage',
+  'engine:manage', 'engine:read', 'catalogue:manage', 'locale:manage',
   'staff:manage',
   'campaigns:own',
 ] as const;

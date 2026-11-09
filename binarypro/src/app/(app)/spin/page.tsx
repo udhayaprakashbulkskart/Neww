@@ -3,6 +3,7 @@ import { currentUser } from '@/lib/server/auth';
 import { getSpinState } from '@/lib/server/spin';
 import { SpinWheel } from '@/components/spin/spin-wheel';
 import { formatMoney } from '@/lib/domain/money';
+import { ClaimButton } from '@/components/spin/claim-button';
 import { Section, Notice } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
@@ -25,11 +26,12 @@ export default async function SpinPage() {
   const state = await getSpinState(user.id);
 
   const pending = state.history.filter((h) => h.redemptionStatus === 'REQUESTED' || h.redemptionStatus === 'APPROVED');
+  const heldCount = state.heldRewards.length;
   return (
     <div className="space-y-8">
       <header>
         <h1 className="text-3xl font-black tracking-tight">Spin &amp; Win</h1>
-        <p className="mt-1 max-w-2xl text-sm text-[#8f8672]">Paid members get one spin every {state.cooldownDays} days. Everyone can see the wheel. Membership fees do not fund the rewards.</p>
+        <p className="mt-1 max-w-2xl text-sm text-[#8f8672]">Everyone can spin once every {state.cooldownDays} days. Rewards won without a paid membership are held until you activate one. Membership fees do not fund the rewards.</p>
       </header>
 
       {!state.enabled && <Notice tone="warn">Spin &amp; Win is paused right now. Your history is still available below.</Notice>}
@@ -43,8 +45,8 @@ export default async function SpinPage() {
             reasonText: state.reasonText,
             nextEligibleAt: state.nextEligibleAt,
             serverNow: state.serverNow,
-            previewOnly: state.previewOnly,
             cooldownDays: state.cooldownDays,
+            paidCurrent: state.paidCurrent,
           }}
         />
       </section>
@@ -71,6 +73,22 @@ export default async function SpinPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <Section title="Held rewards" subtitle={heldCount ? 'These rewards are waiting for a paid membership. Claim each one once your membership is active.' : 'Nothing is held.'}>
+          {heldCount === 0 ? <p className="text-sm text-[#8f8672]">You have no held rewards.</p> : (
+            <ul className="space-y-2 text-sm">
+              {state.heldRewards.map((h) => (
+                <li key={h.spinId} className="flex flex-col gap-2 rounded-xl border border-[#d4af37]/20 bg-[#d4af37]/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="font-semibold">{h.rewardName}</div>
+                    <div className="text-xs text-[#8f8672]">Won {dateText(h.at)}{h.kind === 'CASH' ? ` · ${formatMoney(BigInt(h.amountMinor), 'INR')}` : ''}</div>
+                  </div>
+                  <ClaimButton spinId={h.spinId} enabled={state.paidCurrent} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
         <Section title="Available rewards" subtitle="Badges are yours to keep. Vouchers appear here once issued.">
           {state.badges.length === 0 && pending.length === 0 ? (
             <p className="text-sm text-[#8f8672]">No rewards yet. Spin the wheel to win one.</p>
@@ -110,9 +128,10 @@ export default async function SpinPage() {
                         {h.kind === 'CASH' && <div className="text-xs text-[#8f8672]">{formatMoney(BigInt(h.amountMinor), 'INR')}</div>}
                       </td>
                       <td className="text-xs">
-                        {h.outcome === 'CREDITED' && 'Credited to wallet'}
-                        {h.outcome === 'GRANTED' && 'Badge kept'}
-                        {h.outcome === 'REDEMPTION_REQUESTED' && (h.redemptionStatus ? STATUS_TEXT[h.redemptionStatus] : 'Requested')}
+                        {h.claimStatus === 'HELD' && 'Held: activate a paid membership to claim'}
+                        {h.claimStatus === 'CLAIMED' && h.outcome === 'CREDITED' && 'Credited to wallet'}
+                        {h.claimStatus === 'CLAIMED' && h.outcome === 'GRANTED' && 'Badge kept'}
+                        {h.claimStatus === 'CLAIMED' && h.outcome === 'REDEMPTION_REQUESTED' && (h.redemptionStatus ? STATUS_TEXT[h.redemptionStatus] : 'Requested')}
                         {h.voucherCode && <div className="mt-1 font-mono text-[#f7e09a]">Code: {h.voucherCode}</div>}
                       </td>
                     </tr>

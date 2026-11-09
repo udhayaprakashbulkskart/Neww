@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/lib/server/db';
-import { spin, getSpinState, updateSettings, updateSlot, fundRewardPool, activateCashReward, decideRedemption, updateReward, createReward } from '@/lib/server/spin';
+import { spin, getSpinState, updateSettings, updateSlot, fundRewardPool, activateCashReward, decideRedemption, updateReward, createReward, claimReward } from '@/lib/server/spin';
 import { spinExportTable } from '@/lib/server/spin-admin';
 import { balanceOf } from '@/lib/server/ledger';
 import { accounts } from '@/lib/server/accounts';
@@ -114,20 +114,63 @@ describe('Spin & Win', () => {
     expect(await db.spinSpin.count({ where: { userId: u.id } })).toBe(1);
   });
 
-  it('never lets a free member spin, but still shows them the wheel as a preview', async () => {
+  it('lets a free member spin, holds the reward, and blocks claiming until a paid membership is active', async () => {
     const free = await member('BASIC', 'Free');
-    await expect(spin(free.id, KEY('free'))).rejects.toMatchObject({ code: 'NOT_MEMBER' });
-    const state = await getSpinState(free.id);
-    expect(state.previewOnly).toBe(true);
-    expect(state.eligible).toBe(false);
+    const now = new Date('2026-11-08T12:00:00Z');
+    const r = await spin(free.id, KEY('free'), now);
+    expect(r.claimStatus).toBe('HELD');
+    const state = await getSpinState(free.id, now);
+    expect(state.paidCurrent).toBe(false);
+    expect(state.heldRewards.map((h) => h.spinId)).toContain(r.spinId);
     expect(state.wheel.length).toBeGreaterThan(0);
+    await expect(claimReward(free.id, r.spinId, now)).rejects.toMatchObject({ code: 'PAID_MEMBERSHIP_REQUIRED' });
+    expect(await db.spinRedemption.count({ where: { userId: free.id } })).toBe(0);
+    // The held badge is not shown as kept until claimed.
+    expect((await getSpinState(free.id, now)).badges.length).toBe(0);
   });
 
-  it('refuses a member whose membership has expired, at the moment of spinning', async () => {
+  it('applies a held badge once a paid membership is active, and never twice', async () => {
+    const free = await member('BASIC', 'Upgrader');
+    const now = new Date('2026-11-08T12:00:00Z');
+    const r = await spin(free.id, KEY('upgrade'), now);
+    await db.membership.update({ where: { userId: free.id }, data: { tier: 'SILVER', active: true, expiresAt: new Date('2100-01-01T00:00:00Z') } });
+    const claimed = await claimReward(free.id, r.spinId, now);
+    expect(claimed.status).toBe('CLAIMED');
+    await expect(claimReward(free.id, r.spinId, now)).rejects.toMatchObject({ code: 'ALREADY_CLAIMED' });
+    expect((await getSpinState(free.id, now)).badges.length).toBe(1);
+  });
+
+  it('keeps a held cash reward held until a paid membership and a payable pool exist, then credits the wallet once', async () => {
+    const a = await admin();
+    const free = await member('BASIC', 'HeldCash');
+    process.env.SPIN_CASH_ENABLED = 'true';
+    await fundRewardPool('1000', 'BANK-REF-0009', a.id);
+    await activateCashReward('cash_500', { legalRef: 'LEGAL-APPROVAL-009', fundingRef: 'FUND-REF-0009' }, a.id);
+    await updateSlot('slot_1', { weight: 50, active: false }, a.id);
+    await updateSlot('slot_2', { weight: 30, active: false }, a.id);
+    await updateSlot('slot_3', { weight: 40, active: true }, a.id);
+    // Free members use the Silver wheel, so the cash segment must be live there, which it now is.
+    const now = new Date('2026-11-08T12:00:00Z');
+    const r = await spin(free.id, KEY('held-cash'), now);
+    expect(r.kind).toBe('CASH');
+    expect(r.claimStatus).toBe('HELD');
+    expect(await balanceOf(db, accounts.wallet(free.id, 'INR').key)).toBe(0n);
+    await expect(claimReward(free.id, r.spinId, now)).rejects.toMatchObject({ code: 'PAID_MEMBERSHIP_REQUIRED' });
+    await db.membership.update({ where: { userId: free.id }, data: { tier: 'SILVER', active: true, expiresAt: new Date('2100-01-01T00:00:00Z') } });
+    await claimReward(free.id, r.spinId, now);
+    expect(await balanceOf(db, accounts.wallet(free.id, 'INR').key)).toBe(50000n);
+    expect(await balanceOf(db, accounts.spinPool('INR').key)).toBe(50000n);
+    expect(await balanceOf(db, 'REVENUE:MEMBERSHIP:INR')).toBe(0n);
+    await expect(claimReward(free.id, r.spinId, now)).rejects.toMatchObject({ code: 'ALREADY_CLAIMED' });
+    await assertLedgerBalanced();
+  });
+
+  it('treats a lapsed membership as free: the spin is allowed but the reward is held', async () => {
     const u = await member('GOLD');
     await db.membership.update({ where: { userId: u.id }, data: { expiresAt: new Date('2026-01-01T00:00:00Z') } });
-    await expect(spin(u.id, KEY('expired'), new Date('2026-11-08T12:00:00Z'))).rejects.toMatchObject({ code: 'MEMBERSHIP_EXPIRED' });
-    expect(await db.spinSpin.count({ where: { userId: u.id } })).toBe(0);
+    const r = await spin(u.id, KEY('expired'), new Date('2026-11-08T12:00:00Z'));
+    expect(r.claimStatus).toBe('HELD');
+    expect((await getSpinState(u.id, new Date('2026-11-08T12:00:00Z'))).paidCurrent).toBe(false);
   });
 
   it('stops everything when the administrator switches Spin & Win off', async () => {

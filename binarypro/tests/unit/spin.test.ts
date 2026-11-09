@@ -1,19 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { cashActivationBlockers, eligibility, isRewardLive, nextEligibleAt, pickIndex, segmentCentreDeg, spinRotation, DAY_MS } from '@/lib/domain/spin';
+import { cashActivationBlockers, eligibility, isPaidAndCurrent, isRewardLive, nextEligibleAt, pickIndex, segmentCentreDeg, spinRotation, DAY_MS } from '@/lib/domain/spin';
 
 const now = new Date('2026-11-08T12:00:00Z');
-const future = new Date('2027-01-01T00:00:00Z');
-const base = { enabled: true, tier: 'SILVER', membershipActive: true, membershipExpiresAt: future, now, nextEligibleAt: null, liveRewardCount: 3 };
+const base = { enabled: true, now, nextEligibleAt: null, liveRewardCount: 3 };
 
 describe('spin eligibility', () => {
-  it('allows a paid member with no cooldown', () => {
+  it('lets every member spin, paid or free, when nothing blocks them', () => {
     expect(eligibility(base)).toEqual({ eligible: true, reason: 'OK' });
   });
 
-  it('blocks free members, expired memberships, disabled switch, cooldown and empty wheels', () => {
-    expect(eligibility({ ...base, tier: 'BASIC' }).reason).toBe('NOT_MEMBER');
-    expect(eligibility({ ...base, membershipExpiresAt: new Date('2026-11-01T00:00:00Z') }).reason).toBe('MEMBERSHIP_EXPIRED');
-    expect(eligibility({ ...base, membershipActive: false }).reason).toBe('MEMBERSHIP_EXPIRED');
+  it('blocks spins only for the switch, cooldown and an empty wheel', () => {
     expect(eligibility({ ...base, enabled: false }).reason).toBe('DISABLED');
     expect(eligibility({ ...base, nextEligibleAt: new Date(now.getTime() + 1000) }).reason).toBe('COOLDOWN');
     expect(eligibility({ ...base, liveRewardCount: 0 }).reason).toBe('NO_REWARDS');
@@ -24,6 +20,15 @@ describe('spin eligibility', () => {
     expect(eligibility({ ...base, nextEligibleAt: nextEligibleAt(last, 15) }).eligible).toBe(true);
     const justBefore = new Date(now.getTime() - 15 * DAY_MS + 1);
     expect(eligibility({ ...base, nextEligibleAt: nextEligibleAt(justBefore, 15) }).reason).toBe('COOLDOWN');
+  });
+
+  it('counts paid membership only when it is paid, active and not expired', () => {
+    const future = new Date('2027-01-01T00:00:00Z');
+    expect(isPaidAndCurrent({ tier: 'SILVER', active: true, expiresAt: future }, now)).toBe(true);
+    expect(isPaidAndCurrent({ tier: 'BASIC', active: true, expiresAt: future }, now)).toBe(false);
+    expect(isPaidAndCurrent({ tier: 'GOLD', active: true, expiresAt: new Date('2026-01-01T00:00:00Z') }, now)).toBe(false);
+    expect(isPaidAndCurrent({ tier: 'GOLD', active: false, expiresAt: future }, now)).toBe(false);
+    expect(isPaidAndCurrent(null, now)).toBe(false);
   });
 });
 

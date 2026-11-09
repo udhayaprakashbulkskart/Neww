@@ -20,8 +20,8 @@ export interface SpinViewState {
   reasonText: string;
   nextEligibleAt: string | null;
   serverNow: string;
-  previewOnly: boolean;
   cooldownDays: number;
+  paidCurrent: boolean;
 }
 
 interface SpinResult {
@@ -33,6 +33,7 @@ interface SpinResult {
   slotIndex: number;
   wheelSize: number;
   nextEligibleAt: string;
+  claimStatus: 'HELD' | 'CLAIMED' | null;
 }
 
 const PALETTE: { fill: string; text: string }[] = [
@@ -74,7 +75,8 @@ function formatCountdown(ms: number): string {
   return d > 0 ? `${d}d ${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-function kindNote(kind: string, amountMinor: string) {
+function kindNote(kind: string, amountMinor: string, held: boolean) {
+  if (held) return 'Your reward is held. Activate a paid membership, then claim it on this page.';
   if (kind === 'CASH') return `${formatMoney(BigInt(amountMinor), 'INR')} has been credited to your wallet.`;
   if (kind === 'VOUCHER') return 'Your voucher request is with our team. The voucher code appears in your reward history once issued.';
   return 'Added to your badges on your profile.';
@@ -163,13 +165,11 @@ export function SpinWheel({ segments, state }: { segments: WheelSegment[]; state
     router.refresh();
   }
 
-  const disabledReason = state.previewOnly
-    ? 'Join a paid membership to spin. You can see the wheel for free.'
-    : cooling
-      ? `Next spin in ${formatCountdown(remaining)}`
-      : !state.eligible
-        ? state.reasonText
-        : null;
+  const disabledReason = cooling
+    ? `Next spin in ${formatCountdown(remaining)}`
+    : !state.eligible
+      ? state.reasonText
+      : null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center">
@@ -223,7 +223,7 @@ export function SpinWheel({ segments, state }: { segments: WheelSegment[]; state
       <div className="space-y-5">
         <div>
           <h2 className="text-xl font-bold">Spin & Win</h2>
-          <p className="mt-1 text-sm text-[#a39a86]">One spin every {state.cooldownDays} days for paid members. Rewards are chosen on our server when you press SPIN.</p>
+          <p className="mt-1 text-sm text-[#a39a86]">Everyone can spin once every {state.cooldownDays} days. Rewards are chosen on our server when you press SPIN. A reward won without a paid membership is held until you activate one.</p>
         </div>
         {disabledReason && (
           <div className="rounded-2xl border border-[#d4af37]/30 bg-[#d4af37]/5 px-4 py-3 text-sm text-[#f7e09a]" role="status">
@@ -252,7 +252,10 @@ export function SpinWheel({ segments, state }: { segments: WheelSegment[]; state
             <div className="text-xs font-semibold uppercase tracking-[.3em] text-[#f7e09a]">You won</div>
             <h3 id="spin-result-title" className="mt-3 text-3xl font-black text-white">{result.rewardName}</h3>
             <p className="mt-2 text-sm text-[#cfc6b0]">{result.rewardDescription}</p>
-            <p className="mt-3 text-sm font-semibold text-[#f7e09a]">{kindNote(result.kind, result.amountMinor)}</p>
+            <p className="mt-3 text-sm font-semibold text-[#f7e09a]">{kindNote(result.kind, result.amountMinor, result.claimStatus === 'HELD')}</p>
+            {result.claimStatus === 'HELD' && (
+              <a href="/dashboard" className="mt-3 block text-sm font-semibold text-[#f7e09a] underline">Choose a membership</a>
+            )}
             <button type="button" onClick={closePopup} className="btn btn-brand mt-6 w-full py-3">Continue</button>
           </div>
         </div>

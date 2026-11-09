@@ -19,7 +19,7 @@ export async function spinAdminOverview(opts: { userId?: string | null; take?: n
       where: opts.userId ? { userId: opts.userId } : undefined,
       orderBy: { createdAt: 'desc' },
       take: opts.take ?? 100,
-      include: { user: { select: { name: true, email: true } }, redemption: { select: { status: true } } },
+      include: { user: { select: { name: true, email: true } }, redemption: { select: { status: true } }, claim: { select: { status: true } } },
     }),
     db.spinSpin.groupBy({ by: ['rewardId'], _count: { _all: true }, _sum: { amountMinor: true } }),
     db.spinRedemption.findMany({
@@ -44,7 +44,7 @@ export async function spinAdminOverview(opts: { userId?: string | null; take?: n
     slots: slots.map((s) => ({ id: s.id, tier: s.tier, rewardId: s.rewardId, rewardName: s.reward.name, weight: s.weight, active: s.active })),
     spins: spins.map((s) => ({
       id: s.id, at: s.createdAt, user: s.user.email ?? s.user.name, tier: s.tier, reward: s.rewardName,
-      kind: s.rewardKind, amountMinor: s.amountMinor, outcome: s.outcome, redemption: s.redemption?.status ?? null,
+      kind: s.rewardKind, amountMinor: s.amountMinor, outcome: s.outcome, redemption: s.redemption?.status ?? null, claim: s.claim?.status ?? null,
     })),
     queue: queue.map((q) => ({ id: q.id, status: q.status, reward: q.spin.rewardName, at: q.spin.createdAt, user: q.user.email ?? q.user.name })),
     maxRows: MAX_ROWS,
@@ -57,13 +57,13 @@ export async function spinExportTable(report: SpinReport, range: { gte: Date; lt
       where: { createdAt: { gte: range.gte, lt: range.lt }, ...(userId ? { userId } : {}) },
       orderBy: { createdAt: 'desc' },
       take: MAX_ROWS * 10,
-      include: { user: { select: { name: true, email: true } }, redemption: { select: { status: true, voucherCode: true } } },
+      include: { user: { select: { name: true, email: true } }, redemption: { select: { status: true, voucherCode: true } }, claim: { select: { status: true } } },
     });
     return {
-      headers: ['Time (UTC)', 'Member', 'Membership', 'Reward', 'Kind', 'Cash amount (INR)', 'Outcome', 'Redemption status', 'Spin ID'],
+      headers: ['Time (UTC)', 'Member', 'Membership', 'Reward', 'Kind', 'Cash amount (INR)', 'Outcome', 'Claim status', 'Redemption status', 'Spin ID'],
       rows: rows.map((s) => [
         s.createdAt.toISOString(), s.user.email ?? s.user.name, s.tier, s.rewardName, s.rewardKind,
-        s.rewardKind === 'CASH' ? minorToDecimal(s.amountMinor) : '', s.outcome, s.redemption?.status ?? '', s.id,
+        s.rewardKind === 'CASH' ? minorToDecimal(s.amountMinor) : '', s.outcome, s.claim?.status ?? '', s.redemption?.status ?? '', s.id,
       ]),
     };
   }

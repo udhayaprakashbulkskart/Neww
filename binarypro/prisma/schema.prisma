@@ -169,6 +169,7 @@ model User {
   kycDocuments    KycDocument[]
   spinSpins       SpinSpin[]
   spinRedemptions SpinRedemption[]
+  spinClaims      SpinClaim[]
   bankAccount     BankAccount?
   orders          Order[]          @relation("BuyerOrders")
   commissions     Commission[]
@@ -683,6 +684,7 @@ model SpinSpin {
   nextEligibleAt DateTime
   createdAt      DateTime        @default(now())
   redemption     SpinRedemption?
+  claim          SpinClaim?
 
   @@index([userId, createdAt])
   @@index([rewardId])
@@ -703,4 +705,24 @@ model SpinRedemption {
   updatedAt   DateTime
 
   @@index([status])
+}
+
+enum SpinClaimStatus {
+  HELD // won without a paid membership: waits until the member activates one
+  CLAIMED // effect applied (wallet credit, voucher request, or badge kept)
+}
+
+// Claim state is kept apart from the immutable spin log so it can change when a member activates a membership.
+model SpinClaim {
+  id        String          @id @default(cuid())
+  spinId    String          @unique
+  spin      SpinSpin        @relation(fields: [spinId], references: [id])
+  userId    String
+  user      User            @relation(fields: [userId], references: [id])
+  status    SpinClaimStatus
+  claimedAt DateTime?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime
+
+  @@index([userId, status])
 }

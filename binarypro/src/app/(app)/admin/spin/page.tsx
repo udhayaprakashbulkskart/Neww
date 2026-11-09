@@ -144,7 +144,7 @@ export default async function SpinAdminPage({ searchParams }: { searchParams: { 
         {overview.spins.length === 0 ? <p className="text-sm text-[#8f8672]">No spins yet.</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="text-left text-[#a39a86]"><tr><th className="py-2">When (UTC)</th><th>Member</th><th>Membership</th><th>Reward</th><th>Cash</th><th>Redemption</th></tr></thead>
+              <thead className="text-left text-[#a39a86]"><tr><th className="py-2">When (UTC)</th><th>Member</th><th>Membership</th><th>Reward</th><th>Cash</th><th>Claim</th><th>Redemption</th></tr></thead>
               <tbody>
                 {overview.spins.map((s) => (
                   <tr key={s.id} className="border-t border-white/5">
@@ -153,6 +153,7 @@ export default async function SpinAdminPage({ searchParams }: { searchParams: { 
                     <td>{s.tier}</td>
                     <td>{s.reward}</td>
                     <td>{s.kind === 'CASH' ? formatMoney(s.amountMinor, 'INR') : '-'}</td>
+                    <td>{s.claim ?? '-'}</td>
                     <td>{s.redemption ?? '-'}</td>
                   </tr>
                 ))}

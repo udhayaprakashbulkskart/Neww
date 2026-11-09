@@ -1,5 +1,7 @@
-// Spin & Win server logic. Every decision (eligibility, cooldown, membership, reward draw, payout) is made here,
-// inside a transaction that locks the member's row so two requests can never both spin.
+// Spin & Win server logic. Every decision (eligibility, cooldown, membership, reward draw) is made here, inside
+// a transaction that locks the member's row so two requests can never both spin.
+// Anyone may spin. A reward won without a paid membership is HELD and applied only when the member claims it
+// while holding an active paid membership. Membership fees never fund rewards.
 import { randomInt, randomUUID } from 'node:crypto';
 import { db, type Tx } from './db';
 import { audit } from './audit';
@@ -8,7 +10,8 @@ import { accounts } from './accounts';
 import { balanceOf, postTransaction } from './ledger';
 import { addDays } from './time';
 import {
-  cashActivationBlockers, eligibility, isRewardLive, nextEligibleAt, pickIndex, REASON_TEXT, TIER_LABEL, validateCooldown, validateWeight, type SpinKind,
+  cashActivationBlockers, eligibility, ENTRY_WHEEL_TIER, isPaidAndCurrent, isRewardLive, nextEligibleAt, pickIndex,
+  REASON_TEXT, TIER_LABEL, validateCooldown, validateWeight, type SpinKind,
 } from '@/lib/domain/spin';
 import { parseMinor } from '@/lib/domain/money';
 
@@ -47,55 +50,63 @@ function publicSegment(s: { id: string; weight: number; reward: { name: string; 
   return { slotId: s.id, name: s.reward.name, description: s.reward.description, kind: s.reward.kind, amountMinor: s.reward.amountMinor.toString(), weight: s.weight };
 }
 
+async function memberContext(userId: string, now: Date, client: Db) {
+  const user = await client.user.findUniqueOrThrow({ where: { id: userId }, include: { membership: true } });
+  const membership = user.membership;
+  const paidCurrent = isPaidAndCurrent(membership, now);
+  const tier = membership?.tier ?? 'BASIC';
+  return { user, membership, paidCurrent, tier, wheelTier: paidCurrent ? tier : ENTRY_WHEEL_TIER };
+}
+
 export async function getSpinState(userId: string, now = new Date()) {
-  const [user, settings, last, recent, badges] = await Promise.all([
-    db.user.findUniqueOrThrow({ where: { id: userId }, include: { membership: true } }),
+  const [ctx, settings, last, recent, held, badges] = await Promise.all([
+    memberContext(userId, now, db),
     loadSettings(),
     db.spinSpin.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
     db.spinSpin.findMany({
       where: { userId }, orderBy: { createdAt: 'desc' }, take: 25,
-      select: { id: true, createdAt: true, rewardName: true, rewardKind: true, amountMinor: true, outcome: true, redemption: { select: { status: true, voucherCode: true } } },
+      select: {
+        id: true, createdAt: true, rewardName: true, rewardKind: true, amountMinor: true, outcome: true,
+        claim: { select: { status: true } },
+        redemption: { select: { status: true, voucherCode: true } },
+      },
+    }),
+    db.spinClaim.findMany({
+      where: { userId, status: 'HELD' }, orderBy: { createdAt: 'desc' }, take: 50,
+      select: { spinId: true, createdAt: true, spin: { select: { rewardName: true, rewardKind: true, amountMinor: true } } },
     }),
     db.spinSpin.findMany({
-      where: { userId, rewardKind: 'BADGE' }, orderBy: { createdAt: 'desc' },
+      where: { userId, rewardKind: 'BADGE', claim: { is: { status: 'CLAIMED' } } }, orderBy: { createdAt: 'desc' },
       select: { rewardName: true, createdAt: true },
     }),
   ]);
-  const membership = user.membership;
-  const tier = membership?.tier ?? 'BASIC';
-  const paidAndCurrent = !!membership?.active && membership.expiresAt > now && tier !== 'BASIC';
-  const lastSpinAt = last?.createdAt ?? null;
-  const next = nextEligibleAt(lastSpinAt, settings.cooldownDays);
-  // Free members, and members whose membership has lapsed, see the Silver wheel as a preview only.
-  const wheelTier = paidAndCurrent ? tier : 'SILVER';
-  const liveSlots = await liveWheel(wheelTier);
-  const verdict = eligibility({
-    enabled: settings.enabled,
-    tier,
-    membershipActive: !!membership?.active,
-    membershipExpiresAt: membership?.expiresAt ?? null,
-    now,
-    nextEligibleAt: next,
-    liveRewardCount: liveSlots.length,
-  });
-  const wheel = liveSlots.map(publicSegment);
+  const next = nextEligibleAt(last?.createdAt ?? null, settings.cooldownDays);
+  const wheelSlots = await liveWheel(ctx.wheelTier);
+  const verdict = eligibility({ enabled: settings.enabled, now, nextEligibleAt: next, liveRewardCount: wheelSlots.length });
   return {
     serverNow: now.toISOString(),
     enabled: settings.enabled,
     cooldownDays: settings.cooldownDays,
     membership: {
-      tier,
-      tierLabel: TIER_LABEL[tier] ?? tier,
-      active: paidAndCurrent,
-      expiresAt: membership?.expiresAt.toISOString() ?? null,
+      tier: ctx.tier,
+      tierLabel: TIER_LABEL[ctx.tier] ?? ctx.tier,
+      active: ctx.paidCurrent,
+      expiresAt: ctx.membership?.expiresAt.toISOString() ?? null,
     },
+    paidCurrent: ctx.paidCurrent,
     eligible: verdict.eligible,
     reason: verdict.reason,
     reasonText: REASON_TEXT[verdict.reason],
-    lastSpinAt: lastSpinAt?.toISOString() ?? null,
+    lastSpinAt: last?.createdAt.toISOString() ?? null,
     nextEligibleAt: next?.toISOString() ?? null,
-    wheel,
-    previewOnly: !paidAndCurrent,
+    wheel: wheelSlots.map(publicSegment),
+    heldRewards: held.map((h) => ({
+      spinId: h.spinId,
+      rewardName: h.spin.rewardName,
+      kind: h.spin.rewardKind,
+      amountMinor: h.spin.amountMinor.toString(),
+      at: h.createdAt.toISOString(),
+    })),
     badges: badges.map((b) => ({ name: b.rewardName, grantedAt: b.createdAt.toISOString() })),
     history: recent.map((r) => ({
       id: r.id,
@@ -104,6 +115,7 @@ export async function getSpinState(userId: string, now = new Date()) {
       kind: r.rewardKind,
       amountMinor: r.amountMinor.toString(),
       outcome: r.outcome,
+      claimStatus: r.claim?.status ?? null,
       redemptionStatus: r.redemption?.status ?? null,
       voucherCode: r.redemption?.status === 'FULFILLED' ? r.redemption.voucherCode : null,
     })),
@@ -111,6 +123,25 @@ export async function getSpinState(userId: string, now = new Date()) {
 }
 
 const KEY = /^[A-Za-z0-9_-]{16,64}$/;
+
+/** Applies a reward's effect once. Used at spin time for paid members, and at claim time for held rewards. */
+async function applyClaim(tx: Tx, claimId: string, userId: string, spin: { id: string; rewardId: string; rewardKind: SpinKind; amountMinor: bigint }, now: Date) {
+  if (spin.rewardKind === 'CASH') {
+    // Money leaves the reward pool only. Membership revenue accounts are never touched.
+    await postTransaction(tx, {
+      reference: `SPIN-CLAIM:${claimId}`,
+      type: 'SPIN_REWARD',
+      description: `Spin & Win cash reward (spin ${spin.id})`,
+      legs: [
+        { ...accounts.spinPool('INR'), direction: 'DEBIT', amountMinor: spin.amountMinor },
+        { ...accounts.wallet(userId, 'INR'), direction: 'CREDIT', amountMinor: spin.amountMinor },
+      ],
+    });
+  }
+  if (spin.rewardKind === 'VOUCHER') {
+    await tx.spinRedemption.create({ data: { spinId: spin.id, userId, status: 'REQUESTED', updatedAt: now } });
+  }
+}
 
 export async function spin(userId: string, requestKey: string, now = new Date()) {
   if (!KEY.test(requestKey)) throw new DomainError('BAD_KEY', 'Missing or invalid request key', 400);
@@ -125,24 +156,18 @@ export async function spin(userId: string, requestKey: string, now = new Date())
       return { replayed: true, ...(await resultOf(tx, replay.id)) };
     }
 
-    const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, include: { membership: true } });
     const settings = await loadSettings(tx);
     const last = await tx.spinSpin.findFirst({ where: { userId }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
-    const membership = user.membership;
-    const tier = membership?.tier ?? 'BASIC';
-    const live = tier === 'BASIC' ? [] : await liveWheel(tier, tx);
+    const ctx = await memberContext(userId, now, tx);
+    const live = await liveWheel(ctx.wheelTier, tx);
     const verdict = eligibility({
       enabled: settings.enabled,
-      tier,
-      membershipActive: !!membership?.active,
-      membershipExpiresAt: membership?.expiresAt ?? null,
       now,
       nextEligibleAt: nextEligibleAt(last?.createdAt ?? null, settings.cooldownDays),
       liveRewardCount: live.length,
     });
     if (!verdict.eligible) {
-      const status = verdict.reason === 'NOT_MEMBER' || verdict.reason === 'MEMBERSHIP_EXPIRED' || verdict.reason === 'TIER_NOT_ELIGIBLE' ? 403 : 409;
-      throw new DomainError(verdict.reason, verdict.reason === 'COOLDOWN' ? 'Your next spin is not available yet' : verdict.reason, status);
+      throw new DomainError(verdict.reason, verdict.reason === 'COOLDOWN' ? 'Your next spin is not available yet' : REASON_TEXT[verdict.reason], 409);
     }
 
     // The draw uses the operating system's secure random source, on the server only.
@@ -154,15 +179,16 @@ export async function spin(userId: string, requestKey: string, now = new Date())
     const reward = slot.reward;
     const outcome = reward.kind === 'BADGE' ? 'GRANTED' : reward.kind === 'CASH' ? 'CREDITED' : 'REDEMPTION_REQUESTED';
     const nextAt = addDays(now, settings.cooldownDays);
+    const amount = reward.kind === 'CASH' ? reward.amountMinor : 0n;
 
     const spinRow = await tx.spinSpin.create({
       data: {
         userId,
-        tier,
+        tier: ctx.tier,
         rewardId: reward.id,
         rewardName: reward.name,
         rewardKind: reward.kind,
-        amountMinor: reward.kind === 'CASH' ? reward.amountMinor : 0n,
+        amountMinor: amount,
         outcome,
         requestKey,
         randomDraw: draw,
@@ -171,23 +197,13 @@ export async function spin(userId: string, requestKey: string, now = new Date())
         createdAt: now,
       },
     });
-
-    if (reward.kind === 'CASH') {
-      // Money leaves the reward pool only. Membership revenue accounts are never touched.
-      await postTransaction(tx, {
-        reference: `SPIN:${requestKey}`,
-        type: 'SPIN_REWARD',
-        description: `Spin & Win cash reward: ${reward.name}`,
-        legs: [
-          { ...accounts.spinPool('INR'), direction: 'DEBIT', amountMinor: reward.amountMinor },
-          { ...accounts.wallet(userId, 'INR'), direction: 'CREDIT', amountMinor: reward.amountMinor },
-        ],
-      });
-    }
-    if (reward.kind === 'VOUCHER') {
-      await tx.spinRedemption.create({ data: { spinId: spinRow.id, userId, status: 'REQUESTED', updatedAt: now } });
-    }
-    await audit(tx, { action: 'spin.won', actorId: userId, targetId: spinRow.id, meta: { tier, reward: reward.id, kind: reward.kind, draw, total } });
+    // Paid members receive the reward now. Everyone else holds it until they claim with a paid membership.
+    const claimStatus = ctx.paidCurrent ? 'CLAIMED' : 'HELD';
+    const claim = await tx.spinClaim.create({
+      data: { spinId: spinRow.id, userId, status: claimStatus, claimedAt: ctx.paidCurrent ? now : null, updatedAt: now },
+    });
+    if (ctx.paidCurrent) await applyClaim(tx, claim.id, userId, { id: spinRow.id, rewardId: reward.id, rewardKind: reward.kind, amountMinor: amount }, now);
+    await audit(tx, { action: 'spin.won', actorId: userId, targetId: spinRow.id, meta: { tier: ctx.tier, reward: reward.id, kind: reward.kind, draw, total, claimStatus } });
 
     return {
       replayed: false,
@@ -195,8 +211,9 @@ export async function spin(userId: string, requestKey: string, now = new Date())
       rewardName: reward.name,
       rewardDescription: reward.description,
       kind: reward.kind,
-      amountMinor: spinRow.amountMinor.toString(),
+      amountMinor: amount.toString(),
       outcome,
+      claimStatus,
       slotIndex: index,
       wheelSize: live.length,
       wheelSlotId: slot.id,
@@ -206,8 +223,33 @@ export async function spin(userId: string, requestKey: string, now = new Date())
   });
 }
 
+/** Claims a held reward. Requires an active paid membership at the moment of claiming. */
+export async function claimReward(userId: string, spinId: string, now = new Date()) {
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+    const ctx = await memberContext(userId, now, tx);
+    if (!ctx.paidCurrent) {
+      throw new DomainError('PAID_MEMBERSHIP_REQUIRED', 'Activate a paid membership to claim this reward', 403);
+    }
+    const claim = await tx.spinClaim.findUnique({ where: { spinId }, include: { spin: true } });
+    if (!claim || claim.userId !== userId) throw new DomainError('NOT_FOUND', 'Reward not found', 404);
+    if (claim.status === 'CLAIMED') throw new DomainError('ALREADY_CLAIMED', 'This reward is already claimed', 409);
+    if (claim.spin.rewardKind === 'CASH') {
+      const reward = await tx.spinReward.findUniqueOrThrow({ where: { id: claim.spin.rewardId } });
+      const pool = await poolBalance(tx);
+      const live = isRewardLive(reward, { cashSwitchOn: cashSwitchOn(), poolBalanceMinor: pool }) && pool >= claim.spin.amountMinor;
+      if (!live) throw new DomainError('CASH_NOT_LIVE', 'This cash reward is not payable yet. It stays held until it is.', 409);
+    }
+    const flipped = await tx.spinClaim.updateMany({ where: { id: claim.id, status: 'HELD' }, data: { status: 'CLAIMED', claimedAt: now, updatedAt: now } });
+    if (flipped.count !== 1) throw new DomainError('CONFLICT', 'This reward was just claimed', 409);
+    await applyClaim(tx, claim.id, userId, { id: claim.spin.id, rewardId: claim.spin.rewardId, rewardKind: claim.spin.rewardKind, amountMinor: claim.spin.amountMinor }, now);
+    await audit(tx, { action: 'spin.claimed', actorId: userId, targetId: claim.spin.id, meta: { kind: claim.spin.rewardKind } });
+    return { spinId, status: 'CLAIMED', kind: claim.spin.rewardKind, amountMinor: claim.spin.amountMinor.toString() };
+  });
+}
+
 async function resultOf(tx: Tx, spinId: string) {
-  const s = await tx.spinSpin.findUniqueOrThrow({ where: { id: spinId } });
+  const s = await tx.spinSpin.findUniqueOrThrow({ where: { id: spinId }, include: { claim: { select: { status: true } } } });
   return {
     spinId: s.id,
     rewardName: s.rewardName,
@@ -215,6 +257,7 @@ async function resultOf(tx: Tx, spinId: string) {
     kind: s.rewardKind,
     amountMinor: s.amountMinor.toString(),
     outcome: s.outcome,
+    claimStatus: s.claim?.status ?? null,
     slotIndex: -1,
     wheelSize: 0,
     wheelSlotId: '',

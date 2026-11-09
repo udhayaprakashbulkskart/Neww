@@ -3,6 +3,8 @@
 
 export const DAY_MS = 86_400_000;
 export const SPIN_TIERS = ['SILVER', 'GOLD', 'PLATINUM'] as const;
+/** The wheel shown to members without a paid membership (the entry wheel). */
+export const ENTRY_WHEEL_TIER = 'SILVER' as const;
 export type SpinTier = (typeof SPIN_TIERS)[number];
 export const TIER_LABEL: Record<string, string> = {
   BASIC: 'Free',
@@ -17,41 +19,31 @@ export function nextEligibleAt(lastSpinAt: Date | null, cooldownDays: number): D
   return lastSpinAt ? new Date(lastSpinAt.getTime() + cooldownDays * DAY_MS) : null;
 }
 
-export type EligibilityReason =
-  | 'OK'
-  | 'DISABLED'
-  | 'NOT_MEMBER'
-  | 'MEMBERSHIP_EXPIRED'
-  | 'TIER_NOT_ELIGIBLE'
-  | 'COOLDOWN'
-  | 'NO_REWARDS';
+export type EligibilityReason = 'OK' | 'DISABLED' | 'COOLDOWN' | 'NO_REWARDS';
 
 export const REASON_TEXT: Record<EligibilityReason, string> = {
   OK: 'You can spin now.',
   DISABLED: 'Spin & Win is paused right now.',
-  NOT_MEMBER: 'Spin & Win is for paid members. Join a membership to spin.',
-  MEMBERSHIP_EXPIRED: 'Your membership has expired. Renew to spin again.',
-  TIER_NOT_ELIGIBLE: 'Your membership does not include Spin & Win.',
   COOLDOWN: 'Your next spin is not available yet.',
-  NO_REWARDS: 'No rewards are available on your wheel right now.',
+  NO_REWARDS: 'No rewards are available on the wheel right now.',
 };
 
-/** Decides whether a member may spin. Every input comes from the server. */
+/** Whether a membership is paid and current. Only this unlocks claiming rewards. */
+export function isPaidAndCurrent(membership: { tier: string; active: boolean; expiresAt: Date } | null, now: Date): boolean {
+  return !!membership && membership.active && membership.tier !== 'BASIC' && membership.expiresAt > now;
+}
+
+/**
+ * Decides whether a member may spin. Everyone may spin, paid or free; the cooldown applies to everyone.
+ * Membership affects only whether a won reward can be claimed, not whether the wheel can be spun.
+ */
 export function eligibility(input: {
   enabled: boolean;
-  tier: string;
-  membershipActive: boolean;
-  membershipExpiresAt: Date | null;
   now: Date;
   nextEligibleAt: Date | null;
   liveRewardCount: number;
 }): { eligible: boolean; reason: EligibilityReason } {
   if (!input.enabled) return { eligible: false, reason: 'DISABLED' };
-  if (input.tier === 'BASIC' || !input.tier) return { eligible: false, reason: 'NOT_MEMBER' };
-  if (!(SPIN_TIERS as readonly string[]).includes(input.tier)) return { eligible: false, reason: 'TIER_NOT_ELIGIBLE' };
-  if (!input.membershipActive || !input.membershipExpiresAt || input.membershipExpiresAt <= input.now) {
-    return { eligible: false, reason: 'MEMBERSHIP_EXPIRED' };
-  }
   if (input.nextEligibleAt && input.now < input.nextEligibleAt) return { eligible: false, reason: 'COOLDOWN' };
   if (input.liveRewardCount === 0) return { eligible: false, reason: 'NO_REWARDS' };
   return { eligible: true, reason: 'OK' };

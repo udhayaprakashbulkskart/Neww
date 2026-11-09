@@ -35,7 +35,7 @@ export default async function LoginPage({ searchParams }: { searchParams: { ref?
       </aside>
 
       <main className="flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
+        <div className={`w-full ${register ? 'max-w-xl' : 'max-w-md'}`}>
           <div className="mb-8 lg:hidden"><Logo /></div>
           <div className="rounded-3xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01))] p-7 shadow-[0_30px_80px_rgba(0,0,0,.6)] backdrop-blur md:p-9">
             <h2 className="text-2xl font-extrabold tracking-tight">{register ? (ref ? t('auth.joinTeam') : t('auth.createAccount')) : t('auth.welcomeBack')}</h2>

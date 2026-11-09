@@ -324,4 +324,7 @@ export const de: Messages = {
   // Copy
   'common.copy': 'Kopieren',
   'common.copied': 'Kopiert',
+  // Sign-up file upload
+  'auth.chooseFile': 'Datei auswählen',
+  'auth.noFile': 'Keine Datei ausgewählt',
 };

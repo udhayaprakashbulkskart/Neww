@@ -324,4 +324,7 @@ export const ar: Messages = {
   // Copy
   'common.copy': 'نسخ',
   'common.copied': 'تم النسخ',
+  // Sign-up file upload
+  'auth.chooseFile': 'اختر ملفاً',
+  'auth.noFile': 'لم يتم اختيار ملف',
 };

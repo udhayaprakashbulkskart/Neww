@@ -323,6 +323,9 @@ export const en = {
   // Copy
   'common.copy': 'Copy',
   'common.copied': 'Copied',
+  // Sign-up file upload
+  'auth.chooseFile': 'Choose file',
+  'auth.noFile': 'No file chosen',
 } as const;
 
 export type MessageKey = keyof typeof en;

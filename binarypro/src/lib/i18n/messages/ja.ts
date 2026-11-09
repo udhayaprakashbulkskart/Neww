@@ -324,4 +324,7 @@ export const ja: Messages = {
   // Copy
   'common.copy': 'コピー',
   'common.copied': 'コピーしました',
+  // Sign-up file upload
+  'auth.chooseFile': 'ファイルを選択',
+  'auth.noFile': 'ファイルが選択されていません',
 };

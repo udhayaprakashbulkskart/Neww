@@ -221,6 +221,9 @@ model Payment {
   providerRef String        @unique
   createdAt   DateTime      @default(now())
   capturedAt  DateTime?
+  // Set only when staff confirm a bank transfer by hand. Unique so one transfer confirms one payment.
+  bankRef     String?       @unique
+  confirmedBy String?
 
   @@index([referenceId])
 }

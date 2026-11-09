@@ -88,6 +88,8 @@ export interface BinaryRunSummary {
 
 /** Pays binary commission once per period. Idempotent by periodKey. */
 export async function runBinaryPayouts(periodKey: string, actorId?: string): Promise<BinaryRunSummary> {
+  // Binary team commission is disabled until documented legal approval. No payout can be run.
+  throw new DomainError('BINARY_DISABLED', 'Binary commission is disabled until documented legal approval', 409);
   return db.$transaction(
     async (tx) => {
       const already = await tx.binaryRun.findUnique({ where: { periodKey } });

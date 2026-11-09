@@ -102,3 +102,28 @@ export async function decideWithdrawal(withdrawalId: string, decision: 'APPROVE'
   });
 }
 
+
+/**
+ * The four member balances, all derived from immutable records (no balance is editable):
+ * - available: credited to the wallet and not yet withdrawn (wallet ledger)
+ * - pending: earned commission not yet released by a daily settlement (pending ledger)
+ * - withdrawable: available money the member may withdraw now (available, only after identity verification)
+ * - withdrawn: approved withdrawals paid out (withdrawal records)
+ * - reversed: commission reversed after returns, in total (commission events)
+ */
+export async function walletSummary(userId: string) {
+  const [available, pending, user, withdrawn, reversedAgg] = await Promise.all([
+    balanceOf(db, accounts.wallet(userId, 'INR').key),
+    balanceOf(db, `PENDING_COMMISSION:${userId}:INR`),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { kyc: true } }),
+    db.withdrawal.aggregate({ where: { userId, currency: 'INR', status: 'APPROVED' }, _sum: { amountMinor: true } }),
+    db.commissionEvent.aggregate({ where: { type: 'REVERSE', entry: { userId } }, _sum: { amountMinor: true } }),
+  ]);
+  return {
+    available,
+    pending,
+    withdrawable: user.kyc === 'VERIFIED' ? available : 0n,
+    withdrawn: withdrawn._sum.amountMinor ?? 0n,
+    reversed: reversedAgg._sum.amountMinor ?? 0n,
+  };
+}

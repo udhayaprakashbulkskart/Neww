@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '@/lib/server/db';
-import { placeMember, runBinaryPayouts, addPvUpline } from '@/lib/server/binary';
+import { placeMember, runBinaryPayouts } from '@/lib/server/binary';
+import { publishPolicy, setDailyCap, runDailySettlement } from '@/lib/server/commission-engine';
 import { createOrder, markDelivered, verifyOrder, returnOrder } from '@/lib/server/orders';
 import { handleCapturedEvent } from '@/lib/server/payments';
 import { createCoupon, fundCouponPool } from '@/lib/server/coupons';
@@ -15,6 +16,15 @@ import { DomainError } from '@/lib/server/errors';
 import { addDays } from '@/lib/server/time';
 
 const DAY = 86_400_000;
+
+const pendingAccountKey = (userId: string) => `PENDING_COMMISSION:${userId}:INR`;
+
+/** Test setup: an approved product policy at 10% and a generous daily cap. */
+async function enableProductCommission(rateBps: number) {
+  const ops = await makeUser({ name: 'Ops', role: 'ADMIN' });
+  await publishPolicy({ kind: 'PRODUCT', rateBps, active: true, legalApprovalRef: 'LEGAL-APPROVED-0001', reason: 'Approved in test' }, ops.id);
+  await setDailyCap('10000000', 'Test cap', ops.id);
+}
 
 async function payOrder(orderId: string) {
   const payment = await db.payment.findFirstOrThrow({ where: { referenceId: orderId, kind: 'ORDER' } });
@@ -60,9 +70,10 @@ describe('binary placement (database)', () => {
 describe('order lifecycle, commissions and cashback', () => {
   beforeEach(resetDb);
 
-  it('releases direct commission, binary PV and cashback only after verification, then balances the ledger', async () => {
-    const { root, s, b } = await buildTree();
-    const { merchant, product } = await makeMerchantWithProduct(100_000n); // ₹1,000.00
+  it('accrues pending product commission and volume only after verification, with no sponsor or binary commission', async () => {
+    const { s, b } = await buildTree();
+    await enableProductCommission(1000);
+    const { merchant, product } = await makeMerchantWithProduct(100_000n);
     const coupon = await createCoupon({
       code: 'SAVE20', funding: 'MERCHANT', merchantId: merchant.id, percent: 20,
       maxCashbackMinor: 50_000n, minOrderMinor: 0n, currency: 'INR', budgetMinor: 200_000n, perUserLimit: 3,
@@ -71,38 +82,25 @@ describe('order lifecycle, commissions and cashback', () => {
     await fundCouponPool(coupon.id, 200_000n, 'test');
 
     const order = await createOrder(b.id, [{ productId: product.id, quantity: 1 }], 'SAVE20');
-    expect(order.cashbackMinor).toBe(20_000n); // 20% of ₹1,000
+    expect(order.cashbackMinor).toBe(20_000n); // quoted cashback before verification
 
-    // Nothing is released before payment + delivery + return window.
     await payOrder(order.id);
-    await markDelivered(order.id, 'test');
-    const deliveredAt = (await db.order.findUniqueOrThrow({ where: { id: order.id } })).returnWindowEndsAt!;
-    await expect(verifyOrder(order.id, 'test', new Date(deliveredAt.getTime() - DAY))).rejects.toThrow(/Return window/);
+    await markDelivered(order.id, 'test', new Date('2026-10-20T10:00:00Z'));
+    await expect(verifyOrder(order.id, 'test', new Date('2026-10-25T10:00:00Z'))).rejects.toThrow(/Return window/);
+    expect(await balanceOf(db, accounts.wallet(b.id, 'INR').key)).toBe(0n);
+    expect(await balanceOf(db, pendingAccountKey(b.id))).toBe(0n);
+
+    await verifyOrder(order.id, 'test', new Date('2026-10-28T10:00:00Z'));
+    // Nothing is paid to the wallet at verification: product commission is pending until a daily settlement.
+    expect(await balanceOf(db, accounts.wallet(b.id, 'INR').key)).toBe(0n);
+    expect(await balanceOf(db, pendingAccountKey(b.id))).toBe(10_000n); // 10% of ₹1,000
+    // Sponsor-linked and binary commission are never computed.
+    expect(await db.commission.count({ where: { userId: s.id } })).toBe(0);
     expect(await balanceOf(db, accounts.wallet(s.id, 'INR').key)).toBe(0n);
-
-    await verifyOrder(order.id, 'test', new Date(deliveredAt.getTime() + 1000));
-
-    // Direct: sponsor GOLD 7% of ₹1,000 = ₹70
-    expect(await balanceOf(db, accounts.wallet(s.id, 'INR').key)).toBe(7_000n);
-    // Cashback to the buyer, funded by the merchant pool
-    expect(await balanceOf(db, accounts.wallet(b.id, 'INR').key)).toBe(20_000n);
-    expect(await balanceOf(db, accounts.merchantPool(merchant.id, 'INR').key)).toBe(180_000n);
-    // Reserve: 25% of PV (₹250) minus direct ₹70 = ₹180
-    expect(await balanceOf(db, accounts.commissionReserve().key)).toBe(18_000n);
-    // Binary PV reached both ancestors on the buyer's LEFT leg
-    const sLeft = await db.pvLeg.findUniqueOrThrow({ where: { userId_side: { userId: s.id, side: 'LEFT' } } });
-    const rLeft = await db.pvLeg.findUniqueOrThrow({ where: { userId_side: { userId: root.id, side: 'LEFT' } } });
-    expect(sLeft.pvMinor).toBe(100_000n);
-    expect(rLeft.pvMinor).toBe(100_000n);
-
-    // Verifying twice is a no-op
-    const again = await verifyOrder(order.id, 'test', new Date(deliveredAt.getTime() + 2000));
-    expect(again.alreadyVerified).toBe(true);
-    expect(await balanceOf(db, accounts.wallet(s.id, 'INR').key)).toBe(7_000n);
-
-    // Webhook replay is idempotent
-    expect((await payOrder(order.id)).duplicate).toBe(true);
-
+    // The volume ledger records the verified sale; no left/right legs are written.
+    expect(await db.volumeEntry.count({ where: { userId: b.id, kind: 'ACCRUE' } })).toBe(1);
+    expect(await db.pvLeg.count({ where: { userId: s.id } })).toBe(0);
+    expect((await db.order.findUniqueOrThrow({ where: { id: order.id } })).cashbackMinor).toBe(10_000n);
     await assertLedgerBalanced();
   });
 
@@ -123,8 +121,9 @@ describe('order lifecycle, commissions and cashback', () => {
     await assertLedgerBalanced();
   });
 
-  it('reverses commissions, cashback and PV on return', async () => {
-    const { root, s, b } = await buildTree();
+  it('reverses pending commission, volume and the merchant budget on return', async () => {
+    const { b } = await buildTree();
+    await enableProductCommission(1000);
     const { merchant, product } = await makeMerchantWithProduct(100_000n);
     const coupon = await createCoupon({
       code: 'BACK10', funding: 'MERCHANT', merchantId: merchant.id, percent: 10,
@@ -134,43 +133,45 @@ describe('order lifecycle, commissions and cashback', () => {
     await fundCouponPool(coupon.id, 100_000n, 'test');
     const order = await createOrder(b.id, [{ productId: product.id, quantity: 1 }], 'BACK10');
     await payOrder(order.id);
-    await markDelivered(order.id, 'test');
-    await verifyOrder(order.id, 'test', addDays(new Date(), 30));
-    expect(await balanceOf(db, accounts.wallet(s.id, 'INR').key)).toBe(7_000n);
+    await markDelivered(order.id, 'test', new Date('2026-10-20T10:00:00Z'));
+    await verifyOrder(order.id, 'test', new Date('2026-10-28T10:00:00Z'));
+    expect(await balanceOf(db, pendingAccountKey(b.id))).toBe(10_000n);
+    expect(await balanceOf(db, accounts.merchantPool(merchant.id, 'INR').key)).toBe(90_000n);
 
     await returnOrder(order.id, 'test');
-    expect(await balanceOf(db, accounts.wallet(s.id, 'INR').key)).toBe(0n);
+    expect(await balanceOf(db, pendingAccountKey(b.id))).toBe(0n);
     expect(await balanceOf(db, accounts.wallet(b.id, 'INR').key)).toBe(0n);
     expect(await balanceOf(db, accounts.merchantPool(merchant.id, 'INR').key)).toBe(100_000n);
-    const sLeft = await db.pvLeg.findUniqueOrThrow({ where: { userId_side: { userId: s.id, side: 'LEFT' } } });
-    const rLeft = await db.pvLeg.findUniqueOrThrow({ where: { userId_side: { userId: root.id, side: 'LEFT' } } });
-    expect(sLeft.pvMinor).toBe(0n);
-    expect(rLeft.pvMinor).toBe(0n);
+    // Volume is reversed: the member's net volume is back to zero.
+    const net = await db.volumeEntry.findMany({ where: { userId: b.id } });
+    expect(net.reduce((a, v) => a + (v.kind === 'ACCRUE' ? v.pvMinor : -v.pvMinor), 0n)).toBe(0n);
+    expect(await db.refund.count({ where: { orderId: order.id } })).toBe(1);
     await assertLedgerBalanced();
   });
 
-  it('creates a clawback receivable when the sponsor already withdrew the commission', async () => {
-    const { s, b } = await buildTree();
-    await db.user.update({ where: { id: s.id }, data: { kyc: 'VERIFIED' } });
-    const { product } = await makeMerchantWithProduct(100_000n);
-    const order = await createOrder(b.id, [{ productId: product.id, quantity: 1 }], null);
+  it('creates a clawback receivable when a member already withdrew released commission', async () => {
+    const { b } = await buildTree();
+    await enableProductCommission(1000);
+    await db.user.update({ where: { id: b.id }, data: { kyc: 'VERIFIED' } });
+    const { merchant, product } = await makeMerchantWithProduct(1_000_000n);
+    const coupon = await createCoupon({
+      code: 'CLAW10', funding: 'MERCHANT', merchantId: merchant.id, percent: 10,
+      maxCashbackMinor: 500_000n, minOrderMinor: 0n, currency: 'INR', budgetMinor: 5_000_000n, perUserLimit: 50,
+      startsAt: addDays(new Date(), -1), endsAt: addDays(new Date(), 30),
+    }, 'test');
+    await fundCouponPool(coupon.id, 5_000_000n, 'test');
+    const order = await createOrder(b.id, [{ productId: product.id, quantity: 1 }], 'CLAW10');
     await payOrder(order.id);
-    await markDelivered(order.id, 'test');
-    await verifyOrder(order.id, 'test', addDays(new Date(), 30));
-    // Sponsor withdraws the ₹70 direct commission (above minimum is ₹500, so top up first via binary-free path):
-    // Use a second verified order to reach the minimum, then withdraw everything.
-    for (let i = 0; i < 9; i++) {
-      const o = await createOrder(b.id, [{ productId: product.id, quantity: 1 }], null);
-      await payOrder(o.id);
-      await markDelivered(o.id, 'test');
-      await verifyOrder(o.id, 'test', addDays(new Date(), 30));
-    }
-    const bal = await balanceOf(db, accounts.wallet(s.id, 'INR').key);
-    const w = await requestWithdrawal(s.id, 'INR', bal);
+    await markDelivered(order.id, 'test', new Date('2026-10-20T10:00:00Z'));
+    await verifyOrder(order.id, 'test', new Date('2026-10-28T10:00:00Z'));
+    // Release on the business day after the sale, then withdraw everything.
+    await runDailySettlement('2026-10-28', 'test', 'Daily release for test', new Date('2026-10-29T06:00:00Z'));
+    expect(await balanceOf(db, accounts.wallet(b.id, 'INR').key)).toBe(100_000n);
+    const w = await requestWithdrawal(b.id, 'INR', 100_000n);
     await decideWithdrawal(w.id, 'APPROVE', 'finance');
-    // Now the first order is returned: the ₹70 is gone, so it becomes a receivable.
+    // The sale is returned after the money has left: the released commission becomes a receivable.
     await returnOrder(order.id, 'test');
-    expect(await balanceOf(db, accounts.clawbackReceivable('INR').key)).toBe(7_000n);
+    expect(await balanceOf(db, accounts.clawbackReceivable('INR').key)).toBe(100_000n);
     await assertLedgerBalanced();
   });
 });
@@ -178,40 +179,19 @@ describe('order lifecycle, commissions and cashback', () => {
 describe('binary payouts', () => {
   beforeEach(resetDb);
 
-  it('pays binary commission once per period from the funded reserve', async () => {
-    const { s, b, b2 } = await buildTree();
+  it('refuses every binary payout run while binary commission is disabled', async () => {
+    const { b, b2 } = await buildTree();
     const { product } = await makeMerchantWithProduct(100_000n);
     for (const buyer of [b, b2]) {
       const o = await createOrder(buyer.id, [{ productId: product.id, quantity: 1 }], null);
       await payOrder(o.id);
-      await markDelivered(o.id, 'test');
-      await verifyOrder(o.id, 'test', addDays(new Date(), 30));
+      await markDelivered(o.id, 'test', new Date('2026-10-20T10:00:00Z'));
+      await verifyOrder(o.id, 'test', new Date('2026-10-28T10:00:00Z'));
     }
-    const reserveBefore = await balanceOf(db, accounts.commissionReserve().key);
-    const run1 = await runBinaryPayouts('2026-11-07', 'test');
-    expect(run1.duplicate).toBe(false);
-    // Sponsor GOLD: matched PV ₹1,000 (100,000 minor) at 10% = ₹100 (10,000 minor)
-    const sBal = await balanceOf(db, accounts.wallet(s.id, 'INR').key);
-    // direct from b and b2 = 2 * 7,000 = 14,000 ; binary = 10,000
-    expect(sBal).toBe(24_000n);
-    expect(await balanceOf(db, accounts.commissionReserve().key)).toBe(reserveBefore - 10_000n);
-
-    const run2 = await runBinaryPayouts('2026-11-07', 'test');
-    expect(run2.duplicate).toBe(true);
-    expect(await balanceOf(db, accounts.wallet(s.id, 'INR').key)).toBe(24_000n);
+    await expect(runBinaryPayouts('2026-11-07', 'test')).rejects.toMatchObject({ code: 'BINARY_DISABLED' });
+    expect(await db.ledgerTransaction.count({ where: { type: 'BINARY_COMMISSION' } })).toBe(0);
+    expect(await db.binaryRun.count()).toBe(0);
     await assertLedgerBalanced();
-  });
-
-  it('does not pay BASIC members binary commission', async () => {
-    const root = await makeUser({ name: 'Root', tier: 'BASIC' });
-    const l = await makeUser({ name: 'L', sponsorId: root.id, parentId: root.id, side: 'LEFT', tier: 'BASIC' });
-    const r = await makeUser({ name: 'R', sponsorId: root.id, parentId: root.id, side: 'RIGHT', tier: 'BASIC' });
-    await addPvUpline(db as never, l.id, 100_000n);
-    await addPvUpline(db as never, r.id, 100_000n);
-    await db.$transaction((tx) => tx.commission.count());
-    await db.$executeRaw`UPDATE "LedgerAccount" SET id = id`;
-    const res = await runBinaryPayouts('2026-11-08', 'test');
-    expect(res.payouts).toBe(0);
   });
 });
 

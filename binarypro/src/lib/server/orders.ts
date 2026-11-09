@@ -13,7 +13,7 @@ import { COMMISSION_FUNDING_BPS, PLANS, type Tier } from '@/lib/domain/plans';
 import { effectivePlan } from './plans';
 import { isMembershipActive } from './membership';
 import { accounts } from './accounts';
-import { addPvUpline, removePvUpline } from './binary';
+import { accrueVerifiedSale, reverseVerifiedSale } from './commission-engine';
 import { audit } from './audit';
 import { db, type Tx } from './db';
 import { DomainError } from './errors';
@@ -198,6 +198,7 @@ export async function verifyOrder(orderId: string, actorId: string | null, now =
       const currency = order.currency as Currency;
       const pv = order.pvInrMinor;
       let fundedCur = 0n;
+      let cashback = 0n;
 
       if (!blocked) {
         // 1. Fund the commission reserve from escrow (a fixed share of retail PV).
@@ -218,62 +219,13 @@ export async function verifyOrder(orderId: string, actorId: string | null, now =
           fundedCur = fundCur;
         }
 
-        // 2. Direct commission to the sponsor (verified retail sale only).
-        if (order.buyer.sponsorId) {
-          const sponsor = await tx.user.findUnique({
-            where: { id: order.buyer.sponsorId },
-            select: { id: true, status: true, membership: { select: { tier: true, active: true, expiresAt: true } } },
-          });
-          if (sponsor && sponsor.status === 'ACTIVE' && isMembershipActive(sponsor.membership, now)) {
-            const plan = PLANS[sponsor.membership!.tier as Tier];
-            const reserve = await balanceOf(tx, accounts.commissionReserve().key);
-            let amount = applyBps(pv, plan.directBps);
-            if (amount > reserve) amount = reserve;
-            if (amount > 0n) {
-              await postTransaction(tx, {
-                reference: `DIRECT:${orderId}`,
-                type: 'DIRECT_COMMISSION',
-                description: 'Direct commission on verified retail sale',
-                legs: [
-                  { ...accounts.commissionReserve(), direction: 'DEBIT', amountMinor: amount },
-                  { ...accounts.wallet(sponsor.id, BASE_CURRENCY), direction: 'CREDIT', amountMinor: amount },
-                ],
-              });
-              await tx.commission.create({
-                data: { userId: sponsor.id, type: 'DIRECT', sourceOrderId: orderId, amountMinor: amount },
-              });
-            }
-          }
-        }
-
-        // 3. Binary PV for every ancestor on the buyer's leg.
-        await addPvUpline(tx, order.buyerId, pv);
+        // 2. Volume and product commission accrue through the financial engine. Sponsor-linked and binary
+        //    commission are not computed (disabled until documented legal approval).
+        const accrued = await accrueVerifiedSale(tx, { ...order, cashbackMinor: order.cashbackMinor }, now);
+        cashback = accrued.commissionMinor;
       }
 
-      // 4. Cashback, funded only by the coupon's merchant or promo pool.
-      let cashback = 0n;
-      if (order.couponId && order.cashbackMinor > 0n && !blocked) {
-        const coupon = await tx.coupon.findUniqueOrThrow({ where: { id: order.couponId } });
-        const poolSpec = coupon.funding === 'MERCHANT'
-          ? accounts.merchantPool(order.merchantId, currency)
-          : accounts.promoPool(coupon.id, currency);
-        const poolBal = await balanceOf(tx, poolSpec.key);
-        cashback = order.cashbackMinor < poolBal ? order.cashbackMinor : poolBal;
-        if (cashback > 0n) {
-          await postTransaction(tx, {
-            reference: `CASHBACK:${orderId}`,
-            type: 'CASHBACK',
-            description: 'Merchant or promotional cashback',
-            legs: [
-              { ...poolSpec, direction: 'DEBIT', amountMinor: cashback },
-              { ...accounts.wallet(order.buyerId, currency), direction: 'CREDIT', amountMinor: cashback },
-            ],
-          });
-          await tx.couponRedemption.create({
-            data: { couponId: coupon.id, userId: order.buyerId, orderId, cashbackMinor: cashback },
-          });
-        }
-      }
+      if (blocked) cashback = 0n;
       if (cashback !== order.cashbackMinor) {
         await tx.order.update({ where: { id: orderId }, data: { cashbackMinor: cashback } });
       }
@@ -303,7 +255,7 @@ export async function verifyOrder(orderId: string, actorId: string | null, now =
  * Records a return. Reverses commissions, cashback and PV released for the order. Any part that the
  * recipient has already withdrawn becomes a clawback receivable instead of a negative balance.
  */
-export async function returnOrder(orderId: string, actorId: string, now = new Date()) {
+export async function returnOrder(orderId: string, actorId: string, now = new Date(), reason = 'Customer return') {
   return db.$transaction(
     async (tx) => {
       const order = await tx.order.findUnique({ where: { id: orderId }, include: { commissions: true, redemptions: true } });
@@ -314,21 +266,18 @@ export async function returnOrder(orderId: string, actorId: string, now = new Da
       }
       const currency = order.currency as Currency;
 
-      if (order.status === 'VERIFIED') {
-        for (const c of order.commissions.filter((c) => c.status === 'POSTED' && c.type === 'DIRECT')) {
-          await clawbackFromWallet(tx, c.userId, BASE_CURRENCY, c.amountMinor, `REVERSE_DIRECT:${c.id}`, accounts.commissionReserve());
-          await tx.commission.update({ where: { id: c.id }, data: { status: 'REVERSED' } });
-        }
+      if (order.status === 'VERIFIED' && order.commissionBlocked === null) {
+        // Commission and volume earned by this sale: unsettled commission is reversed to its pool, released commission
+        // is clawed back (shortfall becomes a receivable), and volume is reversed.
+        await reverseVerifiedSale(tx, { id: order.id, buyerId: order.buyerId, merchantId: order.merchantId, currency: order.currency, couponId: order.couponId }, now);
         for (const r of order.redemptions.filter((r) => !r.reversed)) {
-          const coupon = await tx.coupon.findUniqueOrThrow({ where: { id: r.couponId } });
-          const pool = coupon.funding === 'MERCHANT'
-            ? accounts.merchantPool(order.merchantId, currency)
-            : accounts.promoPool(coupon.id, currency);
-          await clawbackFromWallet(tx, order.buyerId, currency, r.cashbackMinor, `REVERSE_CASHBACK:${r.id}`, pool);
+          // Money is handled by the commission reversal above; this only marks the redemption as reversed.
           await tx.couponRedemption.update({ where: { id: r.id }, data: { reversed: true } });
         }
-        if (order.commissionBlocked === null) await removePvUpline(tx, order.buyerId, order.pvInrMinor);
       }
+      await tx.refund.create({
+        data: { orderId, amountMinor: order.subtotalMinor, currency: order.currency, reason: reason.trim(), reference: `REFUND:${orderId}`, actorId },
+      });
 
       await tx.order.update({
         where: { id: orderId },

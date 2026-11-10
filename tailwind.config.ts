@@ -37,6 +37,17 @@ const config: Config = {
           mint: '#CDF5DF',
           sky: '#CFE9F7',
         },
+        tp: {
+          navy: '#101536',
+          navy2: '#1A2150',
+          purple: '#6D4DF2',
+          purpleDark: '#5635D6',
+          lilac: '#EFEBFF',
+          canvas: '#F5F4FB',
+          ink: '#1C1B3A',
+          muted: '#7B7D98',
+          line: '#E8E6F4',
+        },
         ui: {
           text: '#F3F7F5',
           muted: '#8E9B95',

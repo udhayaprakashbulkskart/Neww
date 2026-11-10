@@ -201,3 +201,37 @@ Money is stored in paise (`Int`) and capped per record at ₹99,00,000 so it fit
 ## Support
 
 support@helptrust.in · Help is also available in the app under Help and support.
+
+---
+
+## Team Portal (`/team`)
+
+A separate module in this app for company team members: a member directory with profiles, KYC status and documents,
+one-to-one private chat, and a common **Team Group** chat. It reuses this app's database, encryption (AES-256-GCM),
+session approach (signed JWT with instant revocation), rate limiting, audit log and CSRF checks.
+
+| Area | Where |
+| --- | --- |
+| Sign-in (full name, phone and password; no self sign-up, accounts are added by an administrator) | `/team/login` · `POST /api/team/auth/login` |
+| Directory (grid/list, search, Verified/Pending filter, Chat, View Profile) | `/team` |
+| Member profile (photo, phone, KYC documents and status) | `/team/members/[id]` |
+| Private chat (text, images, PDF, timestamps, unread counts) | `/team/chat`, `/team/chat/[id]` |
+| Team Group (all active members, text and attachments) | `/team/group` |
+| Administration (add/edit members, photos, KYC status and documents, activate/deactivate, group membership, password reset) | `/team/admin`, `/team/admin/members/[id]` |
+| Own profile and password change | `/team/profile` |
+
+Notes for this module:
+
+* **Storage.** Photos, KYC documents and chat attachments are stored AES-256-GCM encrypted in the `TeamFile` table.
+  This survives serverless deploys, where local disk does not persist. Uploads are limited to 4 MB, below the
+  serverless request body limit. Only PDF, JPEG, PNG and WebP are accepted, identified by magic bytes.
+* **Privacy.** KYC documents are visible only to the member and administrators. Private chat and attachments are
+  visible only to the two participants. Non-participants receive 404, so file ids cannot be used to probe.
+* **Real-time.** Messages arrive by polling every 2.5 seconds, which works on serverless hosting. Replacing it with a
+  push channel (for example Neon Realtime or Pusher) needs no change to the data model.
+* **Bootstrap the first administrator** (no portal account exists yet):
+  `npm run team:create-admin -- --name "Full Name" --phone "+91XXXXXXXXXX" --password "at-least-10-chars"`
+* **Smoke test** against a running server: `ADMIN_PHONE=... ADMIN_PASSWORD=... node scripts/team-smoke.mjs`.
+* **Deployment flag.** HelpTrust's production launch guards (KYC/payment providers, SMS/email providers) refuse to
+  start under `NODE_ENV=production` while those are mock or console providers. The team portal uses none of them, so
+  a team-only deployment sets `HELPTRUST_ENABLED=false`. The default is `true`, so HelpTrust behaves exactly as before.

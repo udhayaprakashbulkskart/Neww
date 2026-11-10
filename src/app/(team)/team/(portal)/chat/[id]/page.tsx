@@ -7,7 +7,7 @@ import { ApiError } from '@/lib/http';
 import { card } from '@/components/team/ui';
 import { PrivateChat } from '@/components/team/private-chat';
 
-export const metadata: Metadata = { title: 'Private chat' };
+export const metadata: Metadata = { title: { absolute: 'Private chat · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function PrivateChatPage({ params }: { params: { id: string } }) {

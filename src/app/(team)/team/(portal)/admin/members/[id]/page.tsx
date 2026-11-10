@@ -6,7 +6,7 @@ import { isGroupMember } from '@/lib/team/chat';
 import { ApiError } from '@/lib/http';
 import { AdminMemberEditor } from '@/components/team/admin-member-editor';
 
-export const metadata: Metadata = { title: 'Manage member' };
+export const metadata: Metadata = { title: { absolute: 'Manage member · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminMemberPage({ params }: { params: { id: string } }) {

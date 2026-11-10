@@ -6,7 +6,7 @@ import { Directory } from '@/components/team/directory';
 import { GroupChat } from '@/components/team/group-panel';
 import { card, Notice } from '@/components/team/ui';
 
-export const metadata: Metadata = { title: 'Team directory' };
+export const metadata: Metadata = { title: { absolute: 'Team directory · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function DirectoryPage({ searchParams }: { searchParams: { error?: string } }) {

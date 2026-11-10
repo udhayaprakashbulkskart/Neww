@@ -6,7 +6,7 @@ import { Avatar, card, KycBadge } from '@/components/team/ui';
 import { AdminAddMember } from '@/components/team/admin-add-member';
 import { ROLE_TEXT } from '@/lib/team/labels';
 
-export const metadata: Metadata = { title: 'Administration' };
+export const metadata: Metadata = { title: { absolute: 'Administration · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {

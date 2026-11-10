@@ -5,7 +5,7 @@ import { card, Notice } from '@/components/team/ui';
 import { GroupChat } from '@/components/team/group-panel';
 import Link from 'next/link';
 
-export const metadata: Metadata = { title: 'Team Group' };
+export const metadata: Metadata = { title: { absolute: 'Team Group · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function TeamGroupPage() {

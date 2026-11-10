@@ -5,7 +5,7 @@ import { ROLE_TEXT } from '@/lib/team/labels';
 import { Avatar, card, KycBadge } from '@/components/team/ui';
 import { ChangePassword } from '@/components/team/change-password';
 
-export const metadata: Metadata = { title: 'My profile' };
+export const metadata: Metadata = { title: { absolute: 'My profile · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function MyProfilePage() {

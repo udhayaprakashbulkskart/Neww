@@ -6,7 +6,7 @@ import { listMembers } from '@/lib/team/members';
 import { Avatar, btnPrimary, card } from '@/components/team/ui';
 import { StartChatButton } from '@/components/team/start-chat-button';
 
-export const metadata: Metadata = { title: 'Chat' };
+export const metadata: Metadata = { title: { absolute: 'Chat · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function ChatInboxPage() {

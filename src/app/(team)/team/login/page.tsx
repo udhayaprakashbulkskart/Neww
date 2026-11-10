@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { getTeamActor } from '@/lib/team/session';
 import { LoginForm } from '@/components/team/login-form';
 
-export const metadata: Metadata = { title: 'Team sign in' };
+export const metadata: Metadata = { title: { absolute: 'Team sign in · Team Portal' }, robots: { index: false, follow: false } };
 
 export default async function TeamLoginPage() {
   if (await getTeamActor()) redirect('/team');

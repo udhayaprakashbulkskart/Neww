@@ -8,7 +8,7 @@ import { KYC_LABEL_TEXT, ROLE_TEXT } from '@/lib/team/labels';
 import { Avatar, btnGhost, card, formatBytes, KycBadge, Notice, btnPrimary } from '@/components/team/ui';
 import { StartChatButton } from '@/components/team/start-chat-button';
 
-export const metadata: Metadata = { title: 'Member profile' };
+export const metadata: Metadata = { title: { absolute: 'Member profile · Team Portal' }, robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function MemberProfilePage({ params }: { params: { id: string } }) {

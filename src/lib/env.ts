@@ -31,6 +31,9 @@ const schema = z.object({
   DONATION_MAX_PAISE: z.coerce.number().int().positive().default(50_000_000),
   CAMPAIGN_MAX_REQUEST_PAISE: z.coerce.number().int().positive().default(990_000_000),
   FRAUD_DONATIONS_PER_HOUR_PER_IP: z.coerce.number().int().positive().default(25),
+  // HelpTrust (donations, KYC, OTP delivery) launch guards. Set to "false" on deployments that only run
+  // the team portal, which uses none of those providers. Defaults to "true", so HelpTrust is unchanged.
+  HELPTRUST_ENABLED: z.enum(['true', 'false']).default('true'),
 });
 
 export type Env = z.infer<typeof schema> & {
@@ -68,7 +71,7 @@ export function env(): Env {
     throw new Error('ENCRYPTION_KEY must be a base64-encoded 32-byte key (openssl rand -base64 32).');
   }
 
-  if (isProduction) {
+  if (isProduction && parsed.HELPTRUST_ENABLED === 'true') {
     if (parsed.KYC_PROVIDER === 'mock') {
       throw new Error('KYC_PROVIDER=mock is not allowed in production. Configure an authorised KYC provider.');
     }

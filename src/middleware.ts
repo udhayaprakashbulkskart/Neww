@@ -59,6 +59,14 @@ function handle(req: NextRequest, requestHeaders: Headers): NextResponse {
     return NextResponse.redirect(url);
   }
 
+  // Team portal: pages need the team session cookie. Pages and APIs still verify the session on the server.
+  if (pathname.startsWith('/team') && !pathname.startsWith('/team/login') && !req.cookies.has('tp_session')) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/team/login';
+    url.search = '';
+    return NextResponse.redirect(url);
+  }
+
   if (pathname.startsWith('/admin') && pathname !== '/admin/login' && !hasSession) {
     const url = req.nextUrl.clone();
     url.pathname = '/admin/login';

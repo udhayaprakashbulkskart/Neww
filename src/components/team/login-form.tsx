@@ -7,6 +7,7 @@ import { btnPrimary, inputBase, Notice } from './ui';
 
 export function LoginForm() {
   const router = useRouter();
+  const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +18,7 @@ export function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      await teamApi('/api/team/auth/login', { body: { phone, password } });
+      await teamApi('/api/team/auth/login', { body: { name, phone, password } });
       router.replace('/team');
       router.refresh();
     } catch (err) {
@@ -29,6 +30,17 @@ export function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {error && <Notice>{error}</Notice>}
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-semibold text-tp-ink">Full name</span>
+        <input
+          className={inputBase}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="name"
+          placeholder="As added by your administrator"
+          required
+        />
+      </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-semibold text-tp-ink">Phone number</span>
         <input
@@ -55,7 +67,7 @@ export function LoginForm() {
       <button type="submit" disabled={busy} className={`${btnPrimary} w-full py-3`}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
-      <p className="text-center text-xs text-tp-muted">Accounts are created by a team administrator.</p>
+      <p className="text-center text-xs text-tp-muted">Accounts are added by a team administrator. There is no self sign-up.</p>
     </form>
   );
 }

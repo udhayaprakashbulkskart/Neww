@@ -212,7 +212,7 @@ session approach (signed JWT with instant revocation), rate limiting, audit log 
 
 | Area | Where |
 | --- | --- |
-| Sign-in (phone + password) | `/team/login` · `POST /api/team/auth/login` |
+| Sign-in (full name, phone and password; no self sign-up, accounts are added by an administrator) | `/team/login` · `POST /api/team/auth/login` |
 | Directory (grid/list, search, Verified/Pending filter, Chat, View Profile) | `/team` |
 | Member profile (photo, phone, KYC documents and status) | `/team/members/[id]` |
 | Private chat (text, images, PDF, timestamps, unread counts) | `/team/chat`, `/team/chat/[id]` |

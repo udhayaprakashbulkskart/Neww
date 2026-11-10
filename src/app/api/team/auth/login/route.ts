@@ -2,7 +2,7 @@ import { ApiError, clientIp, handle, json, parseBody } from '@/lib/http';
 import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@/lib/db';
 import { loginSchema } from '@/lib/team/schemas';
-import { dummyPasswordHash, normalizePhone, phoneHash, verifyPassword } from '@/lib/team/security';
+import { dummyPasswordHash, namesMatch, normalizePhone, phoneHash, verifyPassword } from '@/lib/team/security';
 import { createTeamSessionToken, TEAM_SESSION_COOKIE, teamSessionCookieOptions } from '@/lib/team/session';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,8 @@ export const POST = handle(async (req) => {
     select: { id: true, fullName: true, role: true, active: true, sessionVersion: true, passwordHash: true },
   });
   const passwordOk = await verifyPassword(input.password, member?.passwordHash ?? (await dummyPasswordHash()));
-  if (!member || !passwordOk || !member.active) throw INVALID();
+  const nameOk = !!member && namesMatch(input.name, member.fullName);
+  if (!member || !passwordOk || !nameOk || !member.active) throw INVALID();
 
   await db.teamMember.update({ where: { id: member.id }, data: { lastSeenAt: new Date() } });
   const token = await createTeamSessionToken(member.id, member.sessionVersion);

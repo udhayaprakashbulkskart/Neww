@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashPassword, normalizePhone, safeFileName, sniffTeamFile, verifyPassword } from '@/lib/team/security';
+import { hashPassword, namesMatch, normalizePhone, safeFileName, sniffTeamFile, verifyPassword } from '@/lib/team/security';
 
 describe('team phone normalisation', () => {
   it('treats a bare 10-digit number as an Indian mobile', () => {
@@ -49,5 +49,16 @@ describe('team file names', () => {
     expect(safeFileName('../../etc/passwd')).toBe('passwd');
     expect(safeFileName('C:\\Users\\me\\Aadhaar "scan".pdf')).toBe('Aadhaar _scan_.pdf');
     expect(safeFileName('   ')).toBe('file');
+  });
+});
+
+describe('team sign-in name matching', () => {
+  it('ignores case, extra spaces and punctuation', () => {
+    expect(namesMatch('  asha   RAO ', 'Asha Rao')).toBe(true);
+    expect(namesMatch("Priya O'Brien", 'Priya OBrien')).toBe(true);
+  });
+  it('rejects a different name and an empty name', () => {
+    expect(namesMatch('Asha Rai', 'Asha Rao')).toBe(false);
+    expect(namesMatch('   ', '   ')).toBe(false);
   });
 });

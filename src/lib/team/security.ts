@@ -34,6 +34,12 @@ export function phoneLast4(canonical: string): string {
   return canonical.slice(-4);
 }
 
+/** Compare a typed name with the stored one: case, extra spaces and punctuation are ignored. */
+export function namesMatch(typed: string, stored: string): boolean {
+  const norm = (v: string) => v.normalize('NFKD').replace(/['’]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().toLowerCase();
+  return norm(typed) !== '' && norm(typed) === norm(stored);
+}
+
 export function assertPasswordPolicy(password: string) {
   if (password.length < 10) throw errors.badRequest('Password must be at least 10 characters.');
   if (password.length > 128) throw errors.badRequest('Password must be 128 characters or fewer.');

@@ -35,7 +35,7 @@ export function AdminAddMember() {
     <form onSubmit={submit} className={`${card} space-y-5 p-6`}>
       <div>
         <h2 className="text-lg font-bold">Add a team member</h2>
-        <p className="text-sm text-tp-muted">They sign in with this phone number and password, and join the Team Group automatically.</p>
+        <p className="text-sm text-tp-muted">They sign in with their full name, phone number and password. They join the Team Group automatically.</p>
       </div>
       {error && <Notice>{error}</Notice>}
       {done && <Notice tone="success">{done}</Notice>}

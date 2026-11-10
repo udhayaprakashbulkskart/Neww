@@ -4,6 +4,7 @@ export const TEAM_MAX_UPLOAD_BYTES = 4 * 1024 * 1024; // stays under the 4.5 MB 
 export const TEAM_MESSAGE_MAX = 4000;
 
 export const loginSchema = z.object({
+  name: z.string().trim().min(2).max(120),
   phone: z.string().trim().min(6).max(24),
   password: z.string().min(1).max(256),
 });

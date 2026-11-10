@@ -2,7 +2,7 @@
  * HTTP end-to-end check for the team portal. Run against a live server with a migrated database
  * that already contains one administrator (see `npm run team:create-admin`).
  *
- *   ADMIN_PHONE=+919812345678 ADMIN_PASSWORD='...' BASE_URL=http://localhost:3000 node scripts/team-smoke.mjs
+ *   ADMIN_NAME='Asha Rao' ADMIN_PHONE=+919812345678 ADMIN_PASSWORD='...' BASE_URL=http://localhost:3000 node scripts/team-smoke.mjs
  *
  * It creates three test members, then checks sign-in, directory visibility, KYC privacy, photo and
  * attachment access, private and group chat isolation, group removal and deactivation.
@@ -12,8 +12,9 @@
 const BASE = process.env.BASE_URL ?? 'http://localhost:3000';
 const ADMIN_PHONE = process.env.ADMIN_PHONE;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-if (!ADMIN_PHONE || !ADMIN_PASSWORD) {
-  console.error('Set ADMIN_PHONE and ADMIN_PASSWORD.');
+const ADMIN_NAME = process.env.ADMIN_NAME;
+if (!ADMIN_PHONE || !ADMIN_PASSWORD || !ADMIN_NAME) {
+  console.error('Set ADMIN_NAME, ADMIN_PHONE and ADMIN_PASSWORD.');
   process.exit(1);
 }
 
@@ -76,10 +77,13 @@ async function main() {
   const carol = new Session('carol');
 
   // ----- Authentication -----
-  let r = await admin.req('POST', '/api/team/auth/login', { json: { phone: ADMIN_PHONE, password: 'wrong-password-here' } });
+  let r = await admin.req('POST', '/api/team/auth/login', { json: { name: ADMIN_NAME, phone: ADMIN_PHONE, password: 'wrong-password-here' } });
   check('wrong password is rejected with 401', r.status === 401, `got ${r.status}`);
 
-  r = await admin.req('POST', '/api/team/auth/login', { json: { phone: ADMIN_PHONE, password: ADMIN_PASSWORD } });
+  r = await admin.req('POST', '/api/team/auth/login', { json: { name: ADMIN_NAME, phone: ADMIN_PHONE, password: ADMIN_PASSWORD } });
+  r = await admin.req('POST', '/api/team/auth/login', { json: { name: 'Someone Else', phone: ADMIN_PHONE, password: ADMIN_PASSWORD } });
+  check('right phone and password but wrong name is rejected', r.status === 401, `got ${r.status}`);
+  r = await admin.req('POST', '/api/team/auth/login', { json: { name: ADMIN_NAME, phone: ADMIN_PHONE, password: ADMIN_PASSWORD } });
   check('admin signs in', r.status === 200 && admin.cookie, `got ${r.status}`);
   check('admin is flagged as administrator', r.data?.data?.isAdmin === true);
 
@@ -100,10 +104,10 @@ async function main() {
   });
   check('duplicate phone number is refused', r.status === 409, `got ${r.status}`);
 
-  r = await bala.req('POST', '/api/team/auth/login', { json: { phone: `+9198${stamp}0`, password: 'bala-password-1' } });
+  r = await bala.req('POST', '/api/team/auth/login', { json: { name: `Bala Test ${stamp}`, phone: `+9198${stamp}0`, password: 'bala-password-1' } });
   check('new member signs in with phone + password', r.status === 200 && !!bala.cookie, `got ${r.status}`);
 
-  r = await carol.req('POST', '/api/team/auth/login', { json: { phone: `+9197${stamp}1`, password: 'carol-password-1' } });
+  r = await carol.req('POST', '/api/team/auth/login', { json: { name: `Carol Test ${stamp}`, phone: `+9197${stamp}1`, password: 'carol-password-1' } });
   check('second member signs in', r.status === 200 && !!carol.cookie, `got ${r.status}`);
 
   r = await new Session('anon').req('GET', '/api/team/members');
@@ -219,7 +223,7 @@ async function main() {
   check('admin deactivates a member', r.status === 200, `got ${r.status}`);
   r = await bala.req('GET', '/api/team/auth/me');
   check('deactivated member loses their session immediately', r.status === 401, `got ${r.status}`);
-  r = await bala.req('POST', '/api/team/auth/login', { json: { phone: `+9198${stamp}0`, password: 'bala-password-1' } });
+  r = await bala.req('POST', '/api/team/auth/login', { json: { name: `Bala Test ${stamp}`, phone: `+9198${stamp}0`, password: 'bala-password-1' } });
   check('deactivated member cannot sign in', r.status === 401, `got ${r.status}`);
 
   r = await admin.req('GET', '/api/team/auth/me');
